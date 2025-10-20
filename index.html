@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Construction Field Report</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Daily Construction Field Report</h1>
+            <p class="subtitle">Complete this form at the end of each working day</p>
+        </header>
+
+        <form id="fieldReportForm">
+            <!-- Basic Information Section -->
+            <section class="form-section">
+                <h2>Basic Information</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reportDate">Date: <span class="required">*</span></label>
+                        <input type="date" id="reportDate" name="reportDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportTime">Time: <span class="required">*</span></label>
+                        <input type="time" id="reportTime" name="reportTime" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="projectName">Project Name: <span class="required">*</span></label>
+                        <input type="text" id="projectName" name="projectName" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="projectLocation">Project Location: <span class="required">*</span></label>
+                        <input type="text" id="projectLocation" name="projectLocation" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="contractor">General Contractor:</label>
+                        <input type="text" id="contractor" name="contractor">
+                    </div>
+                    <div class="form-group">
+                        <label for="inspector">Inspector Name: <span class="required">*</span></label>
+                        <input type="text" id="inspector" name="inspector" required>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Weather Conditions Section -->
+            <section class="form-section">
+                <h2>Weather Conditions</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="temperature">Temperature (°F):</label>
+                        <input type="number" id="temperature" name="temperature" min="-50" max="150">
+                    </div>
+                    <div class="form-group">
+                        <label for="weatherCondition">Conditions:</label>
+                        <select id="weatherCondition" name="weatherCondition">
+                            <option value="">Select...</option>
+                            <option value="Clear">Clear</option>
+                            <option value="Partly Cloudy">Partly Cloudy</option>
+                            <option value="Cloudy">Cloudy</option>
+                            <option value="Rain">Rain</option>
+                            <option value="Snow">Snow</option>
+                            <option value="Fog">Fog</option>
+                            <option value="Wind">Windy</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Work Performed Section -->
+            <section class="form-section">
+                <h2>Work Performed Today</h2>
+                
+                <div class="form-group full-width">
+                    <label for="workDescription">Description of Work: <span class="required">*</span></label>
+                    <textarea id="workDescription" name="workDescription" rows="6" required 
+                              placeholder="Describe the work performed today in detail..."></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="workStartTime">Work Start Time:</label>
+                        <input type="time" id="workStartTime" name="workStartTime">
+                    </div>
+                    <div class="form-group">
+                        <label for="workEndTime">Work End Time:</label>
+                        <input type="time" id="workEndTime" name="workEndTime">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Labor & Equipment Section -->
+            <section class="form-section">
+                <h2>Labor & Equipment</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="numWorkers">Number of Workers:</label>
+                        <input type="number" id="numWorkers" name="numWorkers" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="numSupervisors">Number of Supervisors:</label>
+                        <input type="number" id="numSupervisors" name="numSupervisors" min="0">
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="equipment">Equipment on Site:</label>
+                    <textarea id="equipment" name="equipment" rows="3" 
+                              placeholder="List equipment used (e.g., excavator, concrete mixer, crane...)"></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="subcontractors">Subcontractors Present:</label>
+                    <textarea id="subcontractors" name="subcontractors" rows="3" 
+                              placeholder="List subcontractors and their trades..."></textarea>
+                </div>
+            </section>
+
+            <!-- Materials Section -->
+            <section class="form-section">
+                <h2>Materials</h2>
+                
+                <div class="form-group full-width">
+                    <label for="materialsDelivered">Materials Delivered:</label>
+                    <textarea id="materialsDelivered" name="materialsDelivered" rows="4" 
+                              placeholder="List materials delivered today with quantities..."></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="materialsUsed">Materials Used:</label>
+                    <textarea id="materialsUsed" name="materialsUsed" rows="4" 
+                              placeholder="List materials used today with quantities..."></textarea>
+                </div>
+            </section>
+
+            <!-- Issues & Delays Section -->
+            <section class="form-section">
+                <h2>Issues, Delays & Observations</h2>
+                
+                <div class="form-group full-width">
+                    <label for="issues">Issues/Problems:</label>
+                    <textarea id="issues" name="issues" rows="4" 
+                              placeholder="Describe any issues or problems encountered..."></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="delays">Delays:</label>
+                    <textarea id="delays" name="delays" rows="4" 
+                              placeholder="Describe any delays and their causes..."></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="safetyObservations">Safety Observations:</label>
+                    <textarea id="safetyObservations" name="safetyObservations" rows="4" 
+                              placeholder="Note any safety concerns or incidents..."></textarea>
+                </div>
+            </section>
+
+            <!-- Quality & Inspections Section -->
+            <section class="form-section">
+                <h2>Quality & Inspections</h2>
+                
+                <div class="form-group full-width">
+                    <label for="inspections">Inspections Performed:</label>
+                    <textarea id="inspections" name="inspections" rows="3" 
+                              placeholder="List inspections performed and results..."></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="qualityIssues">Quality Issues:</label>
+                    <textarea id="qualityIssues" name="qualityIssues" rows="3" 
+                              placeholder="Describe any quality issues or defects..."></textarea>
+                </div>
+            </section>
+
+            <!-- Additional Notes Section -->
+            <section class="form-section">
+                <h2>Additional Notes</h2>
+                
+                <div class="form-group full-width">
+                    <label for="additionalNotes">Additional Comments:</label>
+                    <textarea id="additionalNotes" name="additionalNotes" rows="4" 
+                              placeholder="Any other relevant information..."></textarea>
+                </div>
+            </section>
+
+            <!-- Signature Section -->
+            <section class="form-section">
+                <h2>Signature</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="signatureName">Signature (Type Name): <span class="required">*</span></label>
+                        <input type="text" id="signatureName" name="signatureName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signatureDate">Signature Date: <span class="required">*</span></label>
+                        <input type="date" id="signatureDate" name="signatureDate" required>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Submit Report</button>
+                <button type="button" class="btn btn-secondary" id="previewBtn">Preview Report</button>
+                <button type="reset" class="btn btn-secondary">Clear Form</button>
+            </div>
+        </form>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Report Preview</h2>
+                <div id="previewContent"></div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-primary" id="printBtn">Print Report</button>
+                    <button type="button" class="btn btn-secondary" id="closePreviewBtn">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div id="successMessage" class="success-message">
+            <p>✓ Report submitted successfully!</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
