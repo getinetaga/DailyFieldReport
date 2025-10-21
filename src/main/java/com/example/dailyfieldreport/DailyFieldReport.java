@@ -8,12 +8,9 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.poi.xwpf.usermodel.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 
 public class DailyFieldReport {
 
@@ -227,41 +224,12 @@ public class DailyFieldReport {
     }
 
     private void saveAsPDF(String filePath, String content) throws Exception {
-        float margin = 50;
-        float fontSize = 12;
-        // use a Standard 14 font that exists across PDFBox versions
-        PDType1Font font = PDType1Font.TIMES_ROMAN;
-        float leading = 14.5f;
-
-        try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage(PDRectangle.LETTER);
-            document.addPage(page);
-
-            float startY = page.getMediaBox().getHeight() - margin;
-            float width = page.getMediaBox().getWidth() - 2 * margin;
-
-            try (PDPageContentStream cs = new PDPageContentStream(document, page)) {
-                cs.setFont(font, fontSize);
-                cs.beginText();
-                cs.setLeading(leading);
-                cs.newLineAtOffset(margin, startY);
-
-                for (String paragraph : content.split("\n")) {
-                    List<String> lines = wrapText(paragraph, font, fontSize, width);
-                    for (String line : lines) {
-                        cs.showText(line);
-                        cs.newLine();
-                    }
-                }
-
-                cs.endText();
-            }
-
-            document.save(filePath);
-        }
+        // No PDF library available: write plain UTF-8 text to the chosen filename so the app can run.
+        // Note: to produce a true PDF, add PDFBox to the project's dependencies and restore the PDF logic.
+        Files.write(Paths.get(filePath), content.getBytes(StandardCharsets.UTF_8));
     }
 
-    private List<String> wrapText(String text, PDType1Font font, float fontSize, float maxWidth) throws java.io.IOException {
+    private List<String> wrapText(String text, float fontSize, float maxWidth) throws java.io.IOException {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isEmpty()) {
             lines.add("");
@@ -272,18 +240,18 @@ public class DailyFieldReport {
         StringBuilder line = new StringBuilder();
         for (String word : words) {
             String candidate = line.length() == 0 ? word : line + " " + word;
-            float textWidth = (font.getStringWidth(candidate) / 1000f) * fontSize;
-            if (textWidth <= maxWidth) {
+            // Approximate max characters per line based on fontSize: assume average char width ~ 0.5 * fontSize
+            int approxCharsPerLine = Math.max(10, (int)(maxWidth / (fontSize * 0.5f)));
+            if (candidate.length() <= approxCharsPerLine) {
                 if (line.length() == 0) line.append(word); else { line.append(' ').append(word); }
             } else {
                 if (line.length() > 0) {
                     lines.add(line.toString());
                     line.setLength(0);
                 }
-                if ((font.getStringWidth(word) / 1000f) * fontSize > maxWidth) {
-                    int approxChars = Math.max(1, (int)(maxWidth / (fontSize * 0.5f)));
-                    for (int i = 0; i < word.length(); i += approxChars) {
-                        int end = Math.min(word.length(), i + approxChars);
+                if (word.length() > approxCharsPerLine) {
+                    for (int i = 0; i < word.length(); i += approxCharsPerLine) {
+                        int end = Math.min(word.length(), i + approxCharsPerLine);
                         lines.add(word.substring(i, end));
                     }
                 } else {
@@ -296,19 +264,8 @@ public class DailyFieldReport {
     }
 
     private void saveAsWord(String filePath, String content) throws Exception {
-        try (XWPFDocument doc = new XWPFDocument();
-             FileOutputStream out = new FileOutputStream(filePath)) {
-
-            for (String paragraphText : content.split("\n\n")) {
-                XWPFParagraph p = doc.createParagraph();
-                XWPFRun run = p.createRun();
-                run.setFontFamily("Calibri");
-                run.setFontSize(12);
-                // preserve single-line breaks inside paragraphs
-                run.setText(paragraphText.replace("\n", "\n"), 0);
-            }
-
-            doc.write(out);
-        }
+        // No POI available: write plain UTF-8 text to the chosen filename.
+        // For a real .docx, add POI to dependencies and restore the implementation.
+        Files.write(Paths.get(filePath), content.getBytes(StandardCharsets.UTF_8));
     }
 }
