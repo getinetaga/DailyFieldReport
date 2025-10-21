@@ -3,14 +3,28 @@ package com.example.dailyfieldreport;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.io.FileOutputStream;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+// PDFBox and POI imports (require dependencies in pom.xml). If your IDE hasn't downloaded
+// the dependencies yet, re-import the Maven project so these resolve.
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 public class DailyFieldReport {
 
@@ -39,6 +53,9 @@ public class DailyFieldReport {
     private JCheckBox photosCheck = new JCheckBox("Photos attached");
     private JCheckBox testsCheck = new JCheckBox("Test results attached");
     private JCheckBox drawingsCheck = new JCheckBox("Drawings / Sketches attached");
+
+    // add logger
+    private static final Logger LOGGER = Logger.getLogger(DailyFieldReport.class.getName());
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new DailyFieldReport().createAndShowGUI());
@@ -171,21 +188,68 @@ public class DailyFieldReport {
 
     private void saveReport() {
         try {
+            String[] options = {"PDF (.pdf)", "Word (.docx)", "Plain Text (.txt)", "Cancel"};
+            int choice = JOptionPane.showOptionDialog(null, "Choose an export format:", "Save Report",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+            if (choice < 0 || choice == 3) return; // Cancel
+
             JFileChooser chooser = new JFileChooser();
             chooser.setDialogTitle("Save Report");
-            chooser.setSelectedFile(new java.io.File("DailyFieldReport"));
+
+            String suggestedName = "DailyFieldReport";
+            if (choice == 0) suggestedName += ".pdf";
+            else if (choice == 1) suggestedName += ".docx";
+            else suggestedName += ".txt";
+
+            chooser.setSelectedFile(new java.io.File(suggestedName));
             int result = chooser.showSaveDialog(null);
             if (result != JFileChooser.APPROVE_OPTION) return;
 
-            String basePath = chooser.getSelectedFile().getAbsolutePath();
+            String chosen = chooser.getSelectedFile().getAbsolutePath();
             String reportContent = collectFormData();
 
-            saveAsPDF(basePath + ".pdf", reportContent);
-            saveAsWord(basePath + ".docx", reportContent);
+            try {
+                if (choice == 0) { // PDF
+                    if (!chosen.toLowerCase().endsWith(".pdf")) chosen += ".pdf";
+                    saveAsPDF(chosen, reportContent);
+                } else if (choice == 1) { // Word
+                    if (!chosen.toLowerCase().endsWith(".docx")) chosen += ".docx";
+                    saveAsWord(chosen, reportContent);
+                } else { // Plain text
+                    if (!chosen.toLowerCase().endsWith(".txt")) chosen += ".txt";
+                    Files.write(Paths.get(chosen), reportContent.getBytes(StandardCharsets.UTF_8));
+                }
 
-            JOptionPane.showMessageDialog(null, "Report saved successfully!");
+                int openNow = JOptionPane.showConfirmDialog(null, "Saved report to:\n" + chosen + "\n\nOpen it now?", "Report Saved", JOptionPane.YES_NO_OPTION);
+                if (openNow == JOptionPane.YES_OPTION) {
+                    openFile(chosen);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Report saved: " + chosen);
+                }
+            } catch (NoClassDefFoundError e) {
+                // Handle missing library for PDF/Word export
+                String msg = "Export failed because required libraries are missing.\n\n" +
+                        "To enable full PDF/Word export, re-import the Maven project so PDFBox and Apache POI dependencies are downloaded.";
+                JOptionPane.showMessageDialog(null, msg);
+                LOGGER.log(Level.SEVERE, "Export failed - missing libraries", e);
+
+                // Fallback: write report as plain text
+                try {
+                    Files.write(Paths.get(chosen + ".fallback.txt"), reportContent.getBytes(StandardCharsets.UTF_8));
+                    JOptionPane.showMessageDialog(null, "A plain-text fallback was saved to:\n" + chosen + ".fallback.txt");
+                } catch (IOException ioException) {
+                    JOptionPane.showMessageDialog(null, "Error saving plain-text fallback: " + ioException.getMessage());
+                    LOGGER.log(Level.SEVERE, "Error saving plain-text fallback", ioException);
+                }
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(null, "IO error saving report: " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "IO error saving report", e);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error saving report: " + e.getMessage());
+                LOGGER.log(Level.SEVERE, "Unexpected error saving report", e);
+            }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Error saving report", ex);
             JOptionPane.showMessageDialog(null, "Error saving report: " + ex.getMessage());
         }
     }
@@ -224,48 +288,143 @@ public class DailyFieldReport {
     }
 
     private void saveAsPDF(String filePath, String content) throws Exception {
-        // No PDF library available: write plain UTF-8 text to the chosen filename so the app can run.
-        // Note: to produce a true PDF, add PDFBox to the project's dependencies and restore the PDF logic.
-        Files.write(Paths.get(filePath), content.getBytes(StandardCharsets.UTF_8));
-    }
+        // Create a simple PDF with left-aligned text. For multi-page text we'll add pages as needed.
+        try (PDDocument document = new PDDocument()) {
+            float margin = 50;
+            float fontSize = 12;
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
 
-    private List<String> wrapText(String text, float fontSize, float maxWidth) throws java.io.IOException {
-        List<String> lines = new ArrayList<>();
-        if (text == null || text.isEmpty()) {
-            lines.add("");
-            return lines;
-        }
-
-        String[] words = text.split("\\s+");
-        StringBuilder line = new StringBuilder();
-        for (String word : words) {
-            String candidate = line.length() == 0 ? word : line + " " + word;
-            // Approximate max characters per line based on fontSize: assume average char width ~ 0.5 * fontSize
-            int approxCharsPerLine = Math.max(10, (int)(maxWidth / (fontSize * 0.5f)));
-            if (candidate.length() <= approxCharsPerLine) {
-                if (line.length() == 0) line.append(word); else { line.append(' ').append(word); }
-            } else {
-                if (line.length() > 0) {
-                    lines.add(line.toString());
-                    line.setLength(0);
-                }
-                if (word.length() > approxCharsPerLine) {
-                    for (int i = 0; i < word.length(); i += approxCharsPerLine) {
-                        int end = Math.min(word.length(), i + approxCharsPerLine);
-                        lines.add(word.substring(i, end));
+            // Pick a standard Type1 font via reflection so the code works across PDFBox versions
+            PDFont font = null;
+            String[] candidateFontNames = {"HELVETICA", "TIMES_ROMAN", "COURIER", "TIMES_BOLD", "HELVETICA_BOLD"};
+            try {
+                Class<?> pdType1Class = Class.forName("org.apache.pdfbox.pdmodel.font.PDType1Font");
+                for (String fname : candidateFontNames) {
+                    try {
+                        java.lang.reflect.Field f = pdType1Class.getField(fname);
+                        Object val = f.get(null);
+                        if (val instanceof PDFont) { font = (PDFont) val; break; }
+                    } catch (Throwable t) {
+                        // ignore
                     }
-                } else {
-                    line.append(word);
+                }
+                if (font == null) {
+                    for (java.lang.reflect.Field f : pdType1Class.getFields()) {
+                        Object val = f.get(null);
+                        if (val instanceof PDFont) { font = (PDFont) val; break; }
+                    }
+                }
+            } catch (Throwable t) {
+                // PDFBox not available or class layout unexpected
+            }
+            if (font == null) throw new IllegalStateException("No standard PDType1Font available on classpath");
+            float leading = 1.2f * fontSize;
+
+            PDPageContentStream cs = new PDPageContentStream(document, page);
+            cs.beginText();
+            cs.setFont(font, fontSize);
+            cs.setLeading(leading);
+            cs.newLineAtOffset(margin, page.getMediaBox().getHeight() - margin);
+
+            float maxWidth = page.getMediaBox().getWidth() - 2 * margin;
+
+            for (String paragraph : content.split("\n")) {
+                // simple wrap by characters as fallback
+                String line = "";
+                for (String word : paragraph.split("\\s+")) {
+                    String candidate = line.isEmpty() ? word : line + " " + word;
+                    float textWidth;
+                    try {
+                        textWidth = (font.getStringWidth(candidate) / 1000f) * fontSize;
+                    } catch (Throwable t) {
+                        // fallback to character-count approximation if font metrics unavailable
+                        textWidth = candidate.length() * fontSize * 0.5f;
+                    }
+                     if (textWidth <= maxWidth) {
+                         line = candidate;
+                     } else {
+                         cs.showText(line);
+                         cs.newLine();
+                         line = word;
+                     }
+                 }
+                if (!line.isEmpty()) {
+                    cs.showText(line);
+                    cs.newLine();
                 }
             }
+
+            cs.endText();
+            cs.close();
+            document.save(filePath);
+        } catch (Exception e) {
+            // Log and show detailed error
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String stackTrace = sw.toString();
+
+            String msg = "Error saving as PDF: " + e.getMessage() + "\n\nStack Trace:\n" + stackTrace;
+            JOptionPane.showMessageDialog(null, msg, "PDF Save Error", JOptionPane.ERROR_MESSAGE);
+            LOGGER.log(Level.SEVERE, "Error saving as PDF", e);
+            throw e; // rethrow after logging
         }
-        if (line.length() > 0) lines.add(line.toString());
-        return lines;
     }
 
     private void saveAsWord(String filePath, String content) throws Exception {
-        // No POI available: write plain UTF-8 text to the chosen filename.
-        // For a real .docx, add POI to dependencies and restore the implementation.
-        Files.write(Paths.get(filePath), content.getBytes(StandardCharsets.UTF_8));
+        try (XWPFDocument doc = new XWPFDocument()) {
+            for (String paragraphText : content.split("\n\n")) {
+                XWPFParagraph p = doc.createParagraph();
+                XWPFRun run = p.createRun();
+                run.setFontFamily("Calibri");
+                run.setFontSize(11);
+                // write lines inside paragraph preserving single line breaks
+                String[] lines = paragraphText.split("\n");
+                for (int i = 0; i < lines.length; i++) {
+                    run.setText(lines[i], i);
+                }
+            }
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(filePath)) {
+                doc.write(out);
+            }
+        } catch (Exception e) {
+            // Log and show detailed error
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String stackTrace = sw.toString();
+
+            String msg = "Error saving as Word document: " + e.getMessage() + "\n\nStack Trace:\n" + stackTrace;
+            JOptionPane.showMessageDialog(null, msg, "Word Save Error", JOptionPane.ERROR_MESSAGE);
+            LOGGER.log(Level.SEVERE, "Error saving as Word document", e);
+            throw e; // rethrow after logging
+        }
+    }
+
+    // Try to open a file using the desktop integration when available, otherwise fall back to
+    // platform-specific commands (Windows cmd start, macOS open, Linux xdg-open).
+    private void openFile(String path) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
+                java.awt.Desktop.getDesktop().open(new java.io.File(path));
+                return;
+            }
+        } catch (Throwable ignored) {
+            // try platform fallback
+        }
+
+        String os = System.getProperty("os.name").toLowerCase();
+        try {
+            if (os.contains("win")) {
+                // cmd /c start "" "path"
+                new ProcessBuilder("cmd", "/c", "start", "", path).start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", path).start();
+            } else {
+                new ProcessBuilder("xdg-open", path).start();
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Saved but couldn't open file automatically: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Error opening file automatically", e);
+        }
     }
 }
