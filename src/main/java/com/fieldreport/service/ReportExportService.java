@@ -134,7 +134,7 @@ public class ReportExportService {
             LocalDateTime.now().format(FILE_DATE_FORMAT));
         
         try (FileWriter writer = new FileWriter(fileName)) {
-            writer.write(generateHTMLContent(report, "Daily Field Report"));
+            writer.write(generateHTMLContent(report, "Field Report"));
         }
         
         System.out.println("✅ HTML report exported successfully: " + fileName);
@@ -265,7 +265,7 @@ public class ReportExportService {
         
         // Header
         html.append("<div class='header'>\n");
-        html.append("<h1>DAILY FIELD REPORT</h1>\n");
+        html.append("<h1>FIELD REPORT</h1>\n");
         html.append("<p>Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("</p>\n");
         html.append("</div>\n");
         
@@ -277,7 +277,10 @@ public class ReportExportService {
         html.append("<tr><th>Reporter</th><td>").append(report.getReporterName()).append("</td></tr>\n");
         html.append("<tr><th>Location</th><td>").append(report.getLocation()).append("</td></tr>\n");
         html.append("<tr><th>Project</th><td>").append(report.getProjectName()).append("</td></tr>\n");
-        html.append("<tr><th>Weather</th><td>").append(report.getWeatherConditions()).append("</td></tr>\n");
+        html.append("<tr><th>Weather AM</th><td>").append(report.getWeatherAM()).append("</td></tr>\n");
+        html.append("<tr><th>Weather PM</th><td>").append(report.getWeatherPM()).append("</td></tr>\n");
+        html.append("<tr><th>High Temperature</th><td>").append(report.getTemperatureHigh()).append("</td></tr>\n");
+        html.append("<tr><th>Low Temperature</th><td>").append(report.getTemperatureLow()).append("</td></tr>\n");
         html.append("</table>\n");
         
         // Work description
@@ -288,6 +291,19 @@ public class ReportExportService {
         if (report.getNotes() != null && !report.getNotes().trim().isEmpty()) {
             html.append("<div class='section-title'>Notes:</div>\n");
             html.append("<div class='content'>").append(report.getNotes().replace("\n", "<br>")).append("</div>\n");
+        }
+        
+        // Pictures
+        if (report.getPicturePaths() != null && !report.getPicturePaths().isEmpty()) {
+            html.append("<div class='section-title'>Attached Pictures (").append(report.getPicturePaths().size()).append("):</div>\n");
+            html.append("<div class='content'>\n");
+            html.append("<ul>\n");
+            for (int i = 0; i < report.getPicturePaths().size(); i++) {
+                String picturePath = report.getPicturePaths().get(i);
+                html.append("<li>").append(picturePath).append("</li>\n");
+            }
+            html.append("</ul>\n");
+            html.append("</div>\n");
         }
         
         html.append("</body>\n</html>");
@@ -359,7 +375,8 @@ public class ReportExportService {
             html.append("<tr><th>Reporter</th><td>").append(report.getReporterName()).append("</td></tr>\n");
             html.append("<tr><th>Location</th><td>").append(report.getLocation()).append("</td></tr>\n");
             html.append("<tr><th>Project</th><td>").append(report.getProjectName()).append("</td></tr>\n");
-            html.append("<tr><th>Weather</th><td>").append(report.getWeatherConditions()).append("</td></tr>\n");
+            html.append("<tr><th>Weather AM</th><td>").append(report.getWeatherAM()).append("</td></tr>\n");
+            html.append("<tr><th>Weather PM</th><td>").append(report.getWeatherPM()).append("</td></tr>\n");
             html.append("</table>\n");
             
             // Work description
@@ -389,7 +406,7 @@ public class ReportExportService {
         StringBuilder text = new StringBuilder();
         
         text.append("=".repeat(80)).append("\n");
-        text.append("                           DAILY FIELD REPORT\n");
+        text.append("                               FIELD REPORT\n");
         text.append("=".repeat(80)).append("\n");
         text.append("Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).append("\n\n");
         
@@ -401,7 +418,10 @@ public class ReportExportService {
         text.append("Reporter:      ").append(report.getReporterName()).append("\n");
         text.append("Location:      ").append(report.getLocation()).append("\n");
         text.append("Project:       ").append(report.getProjectName()).append("\n");
-        text.append("Weather:       ").append(report.getWeatherConditions()).append("\n\n");
+        text.append("Weather AM:    ").append(report.getWeatherAM()).append("\n");
+        text.append("Weather PM:    ").append(report.getWeatherPM()).append("\n");
+        text.append("High Temp:     ").append(report.getTemperatureHigh()).append("\n");
+        text.append("Low Temp:      ").append(report.getTemperatureLow()).append("\n\n");
         
         text.append("WORK DESCRIPTION\n");
         text.append("-".repeat(40)).append("\n");
@@ -411,6 +431,16 @@ public class ReportExportService {
             text.append("NOTES\n");
             text.append("-".repeat(40)).append("\n");
             text.append(wrapText(report.getNotes(), 76)).append("\n\n");
+        }
+        
+        if (report.getPicturePaths() != null && !report.getPicturePaths().isEmpty()) {
+            text.append("ATTACHED PICTURES (").append(report.getPicturePaths().size()).append(")\n");
+            text.append("-".repeat(40)).append("\n");
+            for (int i = 0; i < report.getPicturePaths().size(); i++) {
+                String picturePath = report.getPicturePaths().get(i);
+                text.append((i + 1)).append(". ").append(picturePath).append("\n");
+            }
+            text.append("\n");
         }
         
         text.append("=".repeat(80)).append("\n");
@@ -453,7 +483,8 @@ public class ReportExportService {
             text.append("Reporter:      ").append(report.getReporterName()).append("\n");
             text.append("Location:      ").append(report.getLocation()).append("\n");
             text.append("Project:       ").append(report.getProjectName()).append("\n");
-            text.append("Weather:       ").append(report.getWeatherConditions()).append("\n\n");
+            text.append("Weather AM:    ").append(report.getWeatherAM()).append("\n");
+            text.append("Weather PM:    ").append(report.getWeatherPM()).append("\n\n");
             
             text.append("Work Description:\n");
             text.append(wrapText(report.getWorkDescription(), 76)).append("\n\n");

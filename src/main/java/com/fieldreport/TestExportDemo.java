@@ -106,9 +106,19 @@ public class TestExportDemo {
         report.setReporterName("John Smith");
         report.setLocation("Construction Site Downtown");
         report.setProjectName("Bridge Renovation Project");
-        report.setWeatherConditions("Sunny, 75°F");
+        report.setProjectNumber("BR-2025-001");
+        report.setWeatherAM("Sunny, Clear skies");
+        report.setWeatherPM("Partly cloudy");
+        report.setTemperatureHigh("77°F");
+        report.setTemperatureLow("65°F");
         report.setWorkDescription("Completed foundation inspection and began steel beam reinforcement. All safety protocols were followed and equipment checks were performed. Work progress is on schedule.");
         report.setNotes("Minor delay due to material delivery, resolved by end of day.");
+        
+        // Add sample pictures
+        report.addPicturePath("/Users/johnsmith/Pictures/bridge_foundation.jpg");
+        report.addPicturePath("/Users/johnsmith/Pictures/steel_beam_work.jpg");
+        report.addPicturePath("/Users/johnsmith/Pictures/safety_equipment_check.jpg");
+        
         return report;
     }
     
@@ -117,9 +127,18 @@ public class TestExportDemo {
         report.setReporterName("Jane Doe");
         report.setLocation("Manufacturing Plant B");
         report.setProjectName("Factory Upgrade Project");
-        report.setWeatherConditions("Overcast, 68°F");
+        report.setProjectNumber("FU-2025-002");
+        report.setWeatherAM("Overcast, Light rain");
+        report.setWeatherPM("Clearing up");
+        report.setTemperatureHigh("68°F");
+        report.setTemperatureLow("57°F");
         report.setWorkDescription("Installed new electrical systems and tested safety circuits. Coordinated with electrical contractors for final inspections.");
         report.setNotes("All systems operational, ready for next phase.");
+        
+        // Add sample pictures
+        report.addPicturePath("/Users/janedoe/Pictures/electrical_installation.jpg");
+        report.addPicturePath("/Users/janedoe/Pictures/safety_circuit_test.jpg");
+        
         return report;
     }
 }

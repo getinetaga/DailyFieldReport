@@ -2,10 +2,15 @@ package com.fieldreport;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 import com.fieldreport.model.FieldReport;
+import com.fieldreport.model.PersonnelOnSite;
+import com.fieldreport.model.EquipmentOnSite;
+import com.fieldreport.model.MaterialDelivered;
+import com.fieldreport.model.InspectionTesting;
 import com.fieldreport.service.FieldReportService;
 import com.fieldreport.service.ReportExportService;
 
@@ -224,9 +229,9 @@ public class DailyFieldReportApplication {
      */
     private void displayMainMenu() {
         System.out.println(MENU_SEPARATOR);
-        System.out.println("📋 DAILY FIELD REPORT - MAIN MENU");
+        System.out.println("📋 FIELD REPORT - MAIN MENU");
         System.out.println(MENU_SEPARATOR);
-        System.out.println("1. 📝 Create New Daily Field Report");
+        System.out.println("1. 📝 Create New Field Report");
         System.out.println("2. 📄 View All Field Reports");
         System.out.println("3. 📅 View Reports by Date");
         System.out.println("4. 👤 View Reports by Reporter");
@@ -284,7 +289,7 @@ public class DailyFieldReportApplication {
      */
     private void createNewDailyFieldReport() {
         System.out.println("\n" + SEPARATOR);
-        System.out.println("📝 CREATE NEW DAILY FIELD REPORT");
+        System.out.println("📝 CREATE NEW FIELD REPORT");
         System.out.println(SEPARATOR);
         
         try {
@@ -292,7 +297,11 @@ public class DailyFieldReportApplication {
             String reporterName = getValidatedStringInput("👤 Enter reporter name: ", "Reporter name");
             String location = getValidatedStringInput("📍 Enter work location: ", "Location");
             String projectName = getValidatedStringInput("🏗️  Enter project name: ", "Project name");
-            String weatherConditions = getValidatedStringInput("🌤️  Enter weather conditions: ", "Weather conditions");
+            String projectNumber = getValidatedStringInput("🔢 Enter project number: ", "Project number");
+            String weatherAM = getValidatedStringInput("� Enter AM weather conditions: ", "AM weather");
+            String weatherPM = getValidatedStringInput("🌇 Enter PM weather conditions: ", "PM weather");
+            String temperatureHigh = getValidatedStringInput("🌡️  Enter high temperature (°F): ", "High temperature");
+            String temperatureLow = getValidatedStringInput("🌡️  Enter low temperature (°F): ", "Low temperature");
             String workDescription = getValidatedStringInput("📋 Enter work description: ", "Work description");
             
             // Optional notes
@@ -303,10 +312,24 @@ public class DailyFieldReportApplication {
                 reporterName, 
                 location, 
                 projectName, 
-                weatherConditions, 
+                projectNumber,
+                weatherAM,
+                weatherPM,
+                temperatureHigh,
+                temperatureLow,
                 workDescription, 
                 notes
             );
+            
+            // Add personnel, equipment, materials, and inspections
+            addPersonnelToReport(dailyReport);
+            addEquipmentToReport(dailyReport);
+            addMaterialsToReport(dailyReport);
+            addInspectionsToReport(dailyReport);
+            addSafetyInfoToReport(dailyReport);
+            
+            // Add pictures if user wants to
+            addPicturesToReport(dailyReport);
             
             dailyFieldReportService.saveReport(dailyReport);
             
@@ -328,7 +351,7 @@ public class DailyFieldReportApplication {
      */
     private void viewAllDailyFieldReports() {
         System.out.println("\n" + SEPARATOR);
-        System.out.println("📄 ALL DAILY FIELD REPORTS");
+        System.out.println("📄 ALL FIELD REPORTS");
         System.out.println(SEPARATOR);
         
         List<FieldReport> allReports = dailyFieldReportService.getAllReports();
@@ -444,7 +467,7 @@ public class DailyFieldReportApplication {
      */
     private void showReportStatistics() {
         System.out.println("\n" + SEPARATOR);
-        System.out.println("📊 DAILY FIELD REPORT STATISTICS");
+        System.out.println("📊 FIELD REPORT STATISTICS");
         System.out.println(SEPARATOR);
         
         List<FieldReport> allReports = dailyFieldReportService.getAllReports();
@@ -474,7 +497,10 @@ public class DailyFieldReportApplication {
         System.out.println("│ 👤 Reporter: " + String.format("%-43s", report.getReporterName()) + "│");
         System.out.println("│ 📍 Location: " + String.format("%-43s", report.getLocation()) + "│");
         System.out.println("│ 🏗️ Project: " + String.format("%-44s", report.getProjectName()) + "│");
-        System.out.println("│ 🌤️ Weather: " + String.format("%-44s", report.getWeatherConditions()) + "│");
+        System.out.println("│ 🌤️ Weather AM: " + String.format("%-42s", report.getWeatherAM()) + "│");
+        System.out.println("│ 🌇 Weather PM: " + String.format("%-42s", report.getWeatherPM()) + "│");
+        System.out.println("│ 🌡️ High Temp: " + String.format("%-42s", report.getTemperatureHigh()) + "│");
+        System.out.println("│ 🌡️ Low Temp: " + String.format("%-43s", report.getTemperatureLow()) + "│");
         System.out.println("├" + "─".repeat(58) + "┤");
         
         // Work description (may need wrapping)
@@ -489,6 +515,108 @@ public class DailyFieldReportApplication {
             wrapAndDisplayText(report.getNotes(), "│    ");
         }
         
+        // Personnel On Site Table
+        if (report.getPersonnelOnSite() != null && !report.getPersonnelOnSite().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ 👥 PERSONNEL ON SITE (" + report.getPersonnelOnSite().size() + ")");
+            System.out.println("├" + "─".repeat(58) + "┤");
+            for (int i = 0; i < report.getPersonnelOnSite().size(); i++) {
+                var person = report.getPersonnelOnSite().get(i);
+                System.out.println("│ " + (i+1) + ". Company: " + String.format("%-42s", person.getCompany()) + "│");
+                System.out.println("│    Trade/Role: " + String.format("%-39s", person.getTradeRole()) + "│");
+                System.out.println("│    Workers: " + person.getNumberOfWorkers() + 
+                                 ", Hours: " + person.getHoursWorked() + 
+                                 ", Supervisor: " + String.format("%-20s", person.getForemanSupervisor()) + "│");
+                if (i < report.getPersonnelOnSite().size() - 1) {
+                    System.out.println("│" + " ".repeat(58) + "│");
+                }
+            }
+        }
+
+        // Equipment On Site Table
+        if (report.getEquipmentOnSite() != null && !report.getEquipmentOnSite().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ 🚜 EQUIPMENT ON SITE (" + report.getEquipmentOnSite().size() + ")");
+            System.out.println("├" + "─".repeat(58) + "┤");
+            for (int i = 0; i < report.getEquipmentOnSite().size(); i++) {
+                var equipment = report.getEquipmentOnSite().get(i);
+                System.out.println("│ " + (i+1) + ". Equipment: " + String.format("%-39s", equipment.getEquipment()) + "│");
+                System.out.println("│    Type/Size: " + String.format("%-41s", equipment.getTypeSize()) + "│");
+                System.out.println("│    Quantity: " + equipment.getQuantity() + 
+                                 ", Status: " + String.format("%-35s", equipment.getOperatingStatus()) + "│");
+                if (equipment.getIdleReason() != null && !equipment.getIdleReason().trim().isEmpty()) {
+                    System.out.println("│    Idle Reason: " + String.format("%-37s", equipment.getIdleReason()) + "│");
+                }
+                if (i < report.getEquipmentOnSite().size() - 1) {
+                    System.out.println("│" + " ".repeat(58) + "│");
+                }
+            }
+        }
+
+        // Materials Delivered Table
+        if (report.getMaterialsDelivered() != null && !report.getMaterialsDelivered().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ 📦 MATERIALS DELIVERED (" + report.getMaterialsDelivered().size() + ")");
+            System.out.println("├" + "─".repeat(58) + "┤");
+            for (int i = 0; i < report.getMaterialsDelivered().size(); i++) {
+                var material = report.getMaterialsDelivered().get(i);
+                System.out.println("│ " + (i+1) + ". Material: " + String.format("%-40s", material.getMaterial()) + "│");
+                System.out.println("│    Supplier: " + String.format("%-41s", material.getSupplier()) + "│");
+                System.out.println("│    Quantity: " + String.format("%-41s", material.getQuantity()) + "│");
+                System.out.println("│    Location: " + material.getLocationStored() + 
+                                 ", Status: " + String.format("%-25s", material.getInspectionStatus()) + "│");
+                if (i < report.getMaterialsDelivered().size() - 1) {
+                    System.out.println("│" + " ".repeat(58) + "│");
+                }
+            }
+        }
+
+        // Inspections and Testing Table
+        if (report.getInspectionsTesting() != null && !report.getInspectionsTesting().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ 🔍 INSPECTIONS & TESTING (" + report.getInspectionsTesting().size() + ")");
+            System.out.println("├" + "─".repeat(58) + "┤");
+            for (int i = 0; i < report.getInspectionsTesting().size(); i++) {
+                var inspection = report.getInspectionsTesting().get(i);
+                System.out.println("│ " + (i+1) + ". Inspection: " + String.format("%-38s", inspection.getInspection()) + "│");
+                System.out.println("│    Inspector: " + String.format("%-40s", inspection.getTestInspector()) + "│");
+                System.out.println("│    Agency: " + String.format("%-43s", inspection.getAgency()) + "│");
+                System.out.println("│    Remarks: " + String.format("%-42s", inspection.getTestRemarks()) + "│");
+                if (i < report.getInspectionsTesting().size() - 1) {
+                    System.out.println("│" + " ".repeat(58) + "│");
+                }
+            }
+        }
+
+        // Safety Information
+        System.out.println("├" + "─".repeat(58) + "┤");
+        System.out.println("│ 🦺 SAFETY INFORMATION");
+        System.out.println("├" + "─".repeat(58) + "┤");
+        System.out.println("│ Safety Meeting: " + String.format("%-37s", 
+            report.getSafetyMeetingHeld() != null ? report.getSafetyMeetingHeld() : "N/A") + "│");
+        if (report.getSafetyMeetingTopic() != null && !report.getSafetyMeetingTopic().trim().isEmpty()) {
+            System.out.println("│ Meeting Topic: " + String.format("%-38s", report.getSafetyMeetingTopic()) + "│");
+        }
+        System.out.println("│ Incidents/Near Misses: " + String.format("%-30s", 
+            report.getIncidentsNearMisses() != null ? report.getIncidentsNearMisses() : "N/A") + "│");
+
+        // Pictures (if present)
+        if (report.getPicturePaths() != null && !report.getPicturePaths().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ 📸 Attached Pictures (" + report.getPicturePaths().size() + "):");
+            for (int i = 0; i < report.getPicturePaths().size(); i++) {
+                String picturePath = report.getPicturePaths().get(i);
+                String displayText = "   " + (i + 1) + ". " + picturePath;
+                wrapAndDisplayText(displayText, "│    ");
+            }
+        }
+
+        // Signature
+        if (report.getSignature() != null && !report.getSignature().trim().isEmpty()) {
+            System.out.println("├" + "─".repeat(58) + "┤");
+            System.out.println("│ ✍️ Signature: " + String.format("%-40s", report.getSignature()) + "│");
+        }
+
         System.out.println("└" + "─".repeat(58) + "┘");
     }
     
@@ -865,6 +993,320 @@ public class DailyFieldReportApplication {
             
         } catch (Exception e) {
             System.out.println("❌ Failed to export Word document: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Adds pictures to a field report through user interaction.
+     * 
+     * Prompts the user to add picture file paths to the field report. 
+     * The user can add multiple pictures and will be prompted for each one.
+     * Basic file path validation is performed to ensure the path is not empty.
+     * 
+     * @param report the field report to add pictures to
+     */
+    private void addPicturesToReport(FieldReport report) {
+        System.out.println("\n📸 PICTURE ATTACHMENTS");
+        System.out.println("==========================================");
+        
+        try {
+            String response = getOptionalStringInput("📷 Would you like to add pictures to this report? (y/n): ");
+            
+            if (response.toLowerCase().startsWith("y")) {
+                System.out.println("📝 Enter picture file paths (one at a time)");
+                System.out.println("💡 Tip: Use full file paths (e.g., /Users/yourname/Pictures/photo.jpg)");
+                System.out.println("💡 Press Enter without typing anything to finish adding pictures");
+                
+                int pictureCount = 0;
+                while (true) {
+                    String prompt = "📸 Picture " + (pictureCount + 1) + " file path (or press Enter to finish): ";
+                    String picturePath = getOptionalStringInput(prompt);
+                    
+                    if (picturePath.trim().isEmpty()) {
+                        break; // User finished adding pictures
+                    }
+                    
+                    // Basic validation - check if path looks reasonable
+                    if (picturePath.length() < 3 || (!picturePath.contains("/") && !picturePath.contains("\\"))) {
+                        System.out.println("⚠️  Warning: This doesn't look like a valid file path. Adding anyway...");
+                    }
+                    
+                    report.addPicturePath(picturePath.trim());
+                    pictureCount++;
+                    System.out.println("✅ Picture " + pictureCount + " added: " + picturePath.trim());
+                }
+                
+                if (pictureCount > 0) {
+                    System.out.println("📷 Total pictures attached: " + pictureCount);
+                } else {
+                    System.out.println("📷 No pictures were added to this report.");
+                }
+            } else {
+                System.out.println("📷 No pictures will be added to this report.");
+            }
+            
+        } catch (Exception e) {
+            System.out.println("❌ Error adding pictures: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Add personnel entries to the field report
+     */
+    private void addPersonnelToReport(FieldReport report) {
+        System.out.println("\n👥 PERSONNEL ON SITE");
+        System.out.println("==========================================");
+        System.out.print("📝 Would you like to add personnel information? (y/n): ");
+        String addPersonnel = inputScanner.nextLine().trim().toLowerCase();
+        
+        if (addPersonnel.equals("y") || addPersonnel.equals("yes")) {
+            int personnelCount = 0;
+            while (true) {
+                System.out.println("\n➕ Adding Personnel Entry #" + (personnelCount + 1));
+                System.out.println("(Press Enter on Company name to finish)");
+                
+                String company = getOptionalStringInput("🏢 Company/Contractor: ");
+                if (company.trim().isEmpty()) {
+                    break;
+                }
+                
+                String tradeRole = getValidatedStringInput("👷 Trade/Role: ", "Trade/Role");
+                int workers = getValidatedIntInput("👥 Number of Workers: ", "Number of Workers");
+                double hours = getValidatedDoubleInput("⏰ Hours Worked: ", "Hours Worked");
+                String supervisor = getValidatedStringInput("👤 Foreman/Supervisor: ", "Foreman/Supervisor");
+                
+                PersonnelOnSite personnel = new PersonnelOnSite(company, tradeRole, workers, hours, supervisor);
+                report.addPersonnelOnSite(personnel);
+                personnelCount++;
+                
+                System.out.println("✅ Personnel entry added successfully!");
+            }
+            
+            if (personnelCount > 0) {
+                System.out.println("👥 Total personnel entries: " + personnelCount);
+            } else {
+                System.out.println("👥 No personnel entries were added.");
+            }
+        } else {
+            System.out.println("👥 No personnel information will be added.");
+        }
+    }
+    
+    /**
+     * Add equipment entries to the field report
+     */
+    private void addEquipmentToReport(FieldReport report) {
+        System.out.println("\n🚜 EQUIPMENT ON SITE");
+        System.out.println("==========================================");
+        System.out.print("📝 Would you like to add equipment information? (y/n): ");
+        String addEquipment = inputScanner.nextLine().trim().toLowerCase();
+        
+        if (addEquipment.equals("y") || addEquipment.equals("yes")) {
+            int equipmentCount = 0;
+            while (true) {
+                System.out.println("\n➕ Adding Equipment Entry #" + (equipmentCount + 1));
+                System.out.println("(Press Enter on Equipment name to finish)");
+                
+                String equipment = getOptionalStringInput("🚜 Equipment: ");
+                if (equipment.trim().isEmpty()) {
+                    break;
+                }
+                
+                String typeSize = getValidatedStringInput("📏 Type/Size: ", "Type/Size");
+                int quantity = getValidatedIntInput("🔢 Quantity: ", "Quantity");
+                
+                System.out.print("⚡ Is equipment operating? (y/n): ");
+                String operatingInput = inputScanner.nextLine().trim().toLowerCase();
+                boolean operating = operatingInput.equals("y") || operatingInput.equals("yes");
+                
+                String idleReason = "";
+                if (!operating) {
+                    idleReason = getValidatedStringInput("📝 Idle Reason: ", "Idle Reason");
+                }
+                
+                EquipmentOnSite equipmentEntry = new EquipmentOnSite(equipment, typeSize, quantity, operating, idleReason);
+                report.addEquipmentOnSite(equipmentEntry);
+                equipmentCount++;
+                
+                System.out.println("✅ Equipment entry added successfully!");
+            }
+            
+            if (equipmentCount > 0) {
+                System.out.println("🚜 Total equipment entries: " + equipmentCount);
+            } else {
+                System.out.println("🚜 No equipment entries were added.");
+            }
+        } else {
+            System.out.println("🚜 No equipment information will be added.");
+        }
+    }
+    
+    /**
+     * Add materials to the field report
+     */
+    private void addMaterialsToReport(FieldReport report) {
+        System.out.println("\n📦 MATERIALS DELIVERED");
+        System.out.println("==========================================");
+        System.out.print("📝 Would you like to add materials information? (y/n): ");
+        String addMaterials = inputScanner.nextLine().trim().toLowerCase();
+        
+        if (addMaterials.equals("y") || addMaterials.equals("yes")) {
+            int materialsCount = 0;
+            List<MaterialDelivered> materials = new ArrayList<>();
+            
+            while (true) {
+                System.out.println("\n➕ Adding Material Entry #" + (materialsCount + 1));
+                System.out.println("(Press Enter on Material name to finish)");
+                
+                String material = getOptionalStringInput("📦 Material: ");
+                if (material.trim().isEmpty()) {
+                    break;
+                }
+                
+                String supplier = getValidatedStringInput("🏢 Supplier: ", "Supplier");
+                String quantity = getValidatedStringInput("📏 Quantity: ", "Quantity");
+                String location = getValidatedStringInput("📍 Location Stored: ", "Location");
+                String status = getValidatedStringInput("✅ Inspection Status: ", "Status");
+                
+                MaterialDelivered materialEntry = new MaterialDelivered(material, supplier, quantity, location, status);
+                materials.add(materialEntry);
+                materialsCount++;
+                
+                System.out.println("✅ Material entry added successfully!");
+            }
+            
+            if (materialsCount > 0) {
+                report.setMaterialsDelivered(materials);
+                System.out.println("📦 Total material entries: " + materialsCount);
+            } else {
+                System.out.println("📦 No material entries were added.");
+            }
+        } else {
+            System.out.println("📦 No materials information will be added.");
+        }
+    }
+    
+    /**
+     * Add inspections to the field report
+     */
+    private void addInspectionsToReport(FieldReport report) {
+        System.out.println("\n🔍 INSPECTIONS & TESTING");
+        System.out.println("==========================================");
+        System.out.print("📝 Would you like to add inspection information? (y/n): ");
+        String addInspections = inputScanner.nextLine().trim().toLowerCase();
+        
+        if (addInspections.equals("y") || addInspections.equals("yes")) {
+            int inspectionsCount = 0;
+            List<InspectionTesting> inspections = new ArrayList<>();
+            
+            while (true) {
+                System.out.println("\n➕ Adding Inspection Entry #" + (inspectionsCount + 1));
+                System.out.println("(Press Enter on Inspection type to finish)");
+                
+                String inspection = getOptionalStringInput("🔍 Inspection/Test Type: ");
+                if (inspection.trim().isEmpty()) {
+                    break;
+                }
+                
+                String inspector = getValidatedStringInput("👤 Inspector: ", "Inspector");
+                String agency = getValidatedStringInput("🏢 Agency: ", "Agency");
+                String remarks = getValidatedStringInput("📝 Test Remarks: ", "Remarks");
+                
+                InspectionTesting inspectionEntry = new InspectionTesting(inspection, inspector, agency, remarks);
+                inspections.add(inspectionEntry);
+                inspectionsCount++;
+                
+                System.out.println("✅ Inspection entry added successfully!");
+            }
+            
+            if (inspectionsCount > 0) {
+                report.setInspectionsTesting(inspections);
+                System.out.println("🔍 Total inspection entries: " + inspectionsCount);
+            } else {
+                System.out.println("🔍 No inspection entries were added.");
+            }
+        } else {
+            System.out.println("🔍 No inspection information will be added.");
+        }
+    }
+    
+    /**
+     * Add safety information to the field report
+     */
+    private void addSafetyInfoToReport(FieldReport report) {
+        System.out.println("\n🦺 SAFETY INFORMATION");
+        System.out.println("==========================================");
+        
+        System.out.print("📋 Was a safety meeting held? (y/n): ");
+        String meetingHeld = inputScanner.nextLine().trim().toLowerCase();
+        report.setSafetyMeetingHeld(meetingHeld.equals("y") || meetingHeld.equals("yes") ? "Y" : "N");
+        
+        if (meetingHeld.equals("y") || meetingHeld.equals("yes")) {
+            String topic = getValidatedStringInput("📝 Safety meeting topic: ", "Meeting topic");
+            report.setSafetyMeetingTopic(topic);
+        }
+        
+        System.out.print("⚠️ Were there any incidents or near misses? (y/n): ");
+        String incidents = inputScanner.nextLine().trim().toLowerCase();
+        report.setIncidentsNearMisses(incidents.equals("y") || incidents.equals("yes") ? "Y" : "N");
+        
+        String signature = getValidatedStringInput("✍️ Digital signature (name and title): ", "Signature");
+        report.setSignature(signature);
+        
+        System.out.println("✅ Safety information added successfully!");
+    }
+    
+    /**
+     * Get validated integer input
+     */
+    private int getValidatedIntInput(String prompt, String fieldName) {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                String input = inputScanner.nextLine().trim();
+                
+                if (input.isEmpty()) {
+                    System.out.println("❌ " + fieldName + " cannot be empty. Please try again.");
+                    continue;
+                }
+                
+                int value = Integer.parseInt(input);
+                if (value < 0) {
+                    System.out.println("❌ " + fieldName + " must be a positive number. Please try again.");
+                    continue;
+                }
+                
+                return value;
+            } catch (NumberFormatException e) {
+                System.out.println("❌ Please enter a valid number for " + fieldName + ".");
+            }
+        }
+    }
+    
+    /**
+     * Get validated double input
+     */
+    private double getValidatedDoubleInput(String prompt, String fieldName) {
+        while (true) {
+            try {
+                System.out.print(prompt);
+                String input = inputScanner.nextLine().trim();
+                
+                if (input.isEmpty()) {
+                    System.out.println("❌ " + fieldName + " cannot be empty. Please try again.");
+                    continue;
+                }
+                
+                double value = Double.parseDouble(input);
+                if (value < 0) {
+                    System.out.println("❌ " + fieldName + " must be a positive number. Please try again.");
+                    continue;
+                }
+                
+                return value;
+            } catch (NumberFormatException e) {
+                System.out.println("❌ Please enter a valid number for " + fieldName + ".");
+            }
         }
     }
 }
