@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-import com.fieldreport.model.FieldReport;
-import com.fieldreport.model.PersonnelOnSite;
 import com.fieldreport.model.EquipmentOnSite;
-import com.fieldreport.model.MaterialDelivered;
+import com.fieldreport.model.FieldReport;
 import com.fieldreport.model.InspectionTesting;
+import com.fieldreport.model.MaterialDelivered;
+import com.fieldreport.model.PersonnelOnSite;
 import com.fieldreport.service.FieldReportService;
 import com.fieldreport.service.ReportExportService;
 
@@ -101,19 +101,71 @@ public class DailyFieldReportApplication {
     /**
      * Application entry point - starts the Daily Field Report Management System.
      * 
-     * Creates a new application instance and launches the main menu interface.
-     * The application will continue running until the user chooses to exit.
-     * All resources are properly cleaned up on shutdown.
+     * Creates a new application instance and launches either the console interface
+     * or the web interface based on command line arguments.
      * 
-     * @param args command line arguments (not used in this application)
+     * Command line options:
+     * - No arguments: Console interface (interactive menu)
+     * - "web": Web interface (browser-based)
+     * - "web [port]": Web interface on specified port
+     * 
+     * @param args command line arguments:
+     *            no args = console mode
+     *            "web" = web mode on port 8080
+     *            "web [port]" = web mode on specified port
      */
     public static void main(String[] args) {
         displayWelcomeHeader();
         
-        DailyFieldReportApplication dailyReportApp = new DailyFieldReportApplication();
-        dailyReportApp.startApplication();
+        // Check for web mode
+        if (args.length > 0 && "web".equals(args[0])) {
+            startWebMode(args);
+        } else {
+            startConsoleMode();
+        }
         
         displayExitMessage();
+    }
+    
+    /**
+     * Start the application in web mode with browser interface.
+     * 
+     * @param args command line arguments for web configuration
+     */
+    private static void startWebMode(String[] args) {
+        try {
+            System.out.println("🌐 Starting web interface...");
+            
+            // Parse port if provided
+            if (args.length > 1) {
+                try {
+                    int port = Integer.parseInt(args[1]);
+                    com.fieldreport.web.ReportWebApplication webApp = new com.fieldreport.web.ReportWebApplication(port);
+                    webApp.start();
+                } catch (NumberFormatException e) {
+                    System.out.println("⚠️  Invalid port number: " + args[1] + ". Using default port 8080.");
+                    com.fieldreport.web.ReportWebApplication webApp = new com.fieldreport.web.ReportWebApplication();
+                    webApp.start();
+                }
+            } else {
+                com.fieldreport.web.ReportWebApplication webApp = new com.fieldreport.web.ReportWebApplication();
+                webApp.start();
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to start web interface: " + e.getMessage());
+            System.out.println("🔄 Falling back to console mode...");
+            startConsoleMode();
+        }
+    }
+    
+    /**
+     * Start the application in console mode with interactive menu.
+     */
+    private static void startConsoleMode() {
+        System.out.println("💻 Starting console interface...");
+        DailyFieldReportApplication dailyReportApp = new DailyFieldReportApplication();
+        dailyReportApp.startApplication();
     }
     
     // ================= DISPLAY METHODS =================

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 import com.fieldreport.model.FieldReport;
 
@@ -41,6 +42,9 @@ import com.fieldreport.model.FieldReport;
  */
 public class FieldReportService {
     
+    /** Logger for this service */
+    private static final Logger logger = Logger.getLogger(FieldReportService.class.getName());
+    
     /** In-memory storage for field reports - maintains all reports in the system */
     private final List<FieldReport> reports;
     
@@ -68,18 +72,17 @@ public class FieldReportService {
      */
     public void saveReport(FieldReport report) {
         if (report == null) {
-            // Using System.out for console application - would use logger in enterprise app
-            System.out.println("Warning: Attempted to save null report");
+            logger.warning("Attempted to save null report");
             return;
         }
         
         if (!report.isValid()) {
-            System.out.println("Warning: Attempted to save invalid report: " + report);
+            logger.warning("Attempted to save invalid report: " + report);
             throw new IllegalArgumentException("Report is missing required fields");
         }
         
         reports.add(report);
-        System.out.println("Saved field report with ID: " + report.getId());
+        logger.info("Saved field report with ID: " + report.getId());
     }
     
     // ================= READ OPERATIONS =================
@@ -190,13 +193,12 @@ public class FieldReportService {
         for (int i = 0; i < reports.size(); i++) {
             if (reports.get(i).getId().equals(updatedReport.getId())) {
                 reports.set(i, updatedReport);
-                // Using System.out for console application - would use logger in enterprise app
-                System.out.println("Updated field report with ID: " + updatedReport.getId());
+                logger.info("Updated field report with ID: " + updatedReport.getId());
                 return true;
             }
         }
         
-        System.out.println("Warning: Attempted to update non-existent report with ID: " + updatedReport.getId());
+        logger.warning("Attempted to update non-existent report with ID: " + updatedReport.getId());
         return false;
     }
     
@@ -214,9 +216,9 @@ public class FieldReportService {
     public boolean deleteReport(String id) {
         boolean removed = reports.removeIf(report -> report.getId().equals(id));
         if (removed) {
-            System.out.println("Deleted field report with ID: " + id);
+            logger.info("Deleted field report with ID: " + id);
         } else {
-            System.out.println("Warning: Attempted to delete non-existent report with ID: " + id);
+            logger.warning("Attempted to delete non-existent report with ID: " + id);
         }
         return removed;
     }
@@ -267,7 +269,6 @@ public class FieldReportService {
      */
     public void clearAllReports() {
         reports.clear();
-        // Using System.out for console application - would use logger in enterprise app
-        System.out.println("Warning: All field reports have been cleared");
+        logger.warning("All field reports have been cleared");
     }
 }
