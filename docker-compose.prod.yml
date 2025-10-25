@@ -1,0 +1,90 @@
+# Production Docker Compose
+version: '3.8'
+
+services:
+  daily-field-report:
+    image: ghcr.io/getinetaga/daily-field-report:latest
+    container_name: daily-field-report-prod
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx2g -Xms1g -XX:+UseG1GC
+      - SERVER_PORT=8080
+      - LOGGING_LEVEL_ROOT=WARN
+      - SPRING_PROFILES_ACTIVE=production
+      - DATABASE_URL=jdbc:postgresql://postgres:5432/fieldreport_prod
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./exports:/app/exports
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - field-report-prod
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: daily-field-report-db-prod
+    environment:
+      POSTGRES_DB: fieldreport_prod
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - field-report-prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: daily-field-report-redis-prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_prod_data:/data
+    restart: always
+    networks:
+      - field-report-prod
+
+  nginx:
+    image: nginx:alpine
+    container_name: daily-field-report-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - daily-field-report
+    restart: always
+    networks:
+      - field-report-prod
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
+
+networks:
+  field-report-prod:
+    driver: bridge
