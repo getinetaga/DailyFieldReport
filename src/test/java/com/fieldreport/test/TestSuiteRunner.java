@@ -1,15 +1,13 @@
 package com.fieldreport.test;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fieldreport.model.FieldReport;
-import com.fieldreport.model.PersonnelOnSite;
 import com.fieldreport.model.EquipmentOnSite;
-import com.fieldreport.model.MaterialDelivered;
+import com.fieldreport.model.FieldReport;
 import com.fieldreport.model.InspectionTesting;
+import com.fieldreport.model.MaterialDelivered;
+import com.fieldreport.model.PersonnelOnSite;
 import com.fieldreport.service.ReportExportService;
 
 /**

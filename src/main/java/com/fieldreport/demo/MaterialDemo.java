@@ -1,4 +1,4 @@
-package com.fieldreport;
+package com.fieldreport.demo;
 
 import java.time.LocalDateTime;
 import java.util.List;

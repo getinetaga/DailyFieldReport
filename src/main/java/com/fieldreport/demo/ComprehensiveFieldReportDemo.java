@@ -1,4 +1,4 @@
-package com.fieldreport;
+package com.fieldreport.demo;
 
 import java.util.ArrayList;
 import java.util.List;
