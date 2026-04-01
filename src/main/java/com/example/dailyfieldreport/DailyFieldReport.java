@@ -2,20 +2,28 @@ package com.example.dailyfieldreport;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.time.LocalDate;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.InputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-// PDFBox and POI imports (require dependencies in pom.xml). If your IDE hasn't downloaded
-// the dependencies yet, re-import the Maven project so these resolve.
+import java.util.List;
+import java.util.ArrayList;
+import java.nio.file.Path;
+import java.io.File;
+
+// PDFBox and POI imports (require dependencies in pom.xml).
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -37,6 +45,9 @@ public class DailyFieldReport {
     private JTextField temperatureField = new JTextField();
     private JTextField windField = new JTextField();
 
+    // root panel that contains entire form (header + tabs). We'll capture this for export.
+    private JPanel rootPanel;
+
     private JTable personnelTable;
     private JTable equipmentTable;
     private JTextArea workPerformedArea;
@@ -54,6 +65,11 @@ public class DailyFieldReport {
     private JCheckBox testsCheck = new JCheckBox("Test results attached");
     private JCheckBox drawingsCheck = new JCheckBox("Drawings / Sketches attached");
 
+    // photo attachments
+    private final List<Path> photoPaths = new ArrayList<>();
+    private JPanel photoThumbPanel;
+    private JScrollPane photoScrollPane;
+
     // add logger
     private static final Logger LOGGER = Logger.getLogger(DailyFieldReport.class.getName());
 
@@ -67,6 +83,41 @@ public class DailyFieldReport {
         frame.setSize(900, 700);
         frame.setLocationRelativeTo(null);
         frame.setLayout(new BorderLayout());
+
+        // Build rootPanel (we will capture this entire panel for exports)
+        rootPanel = new JPanel(new BorderLayout());
+
+        // Header: logo on the left, title on the right
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JLabel logoLabel = new JLabel();
+        // Try to load bundled logo (/logo.png). If not present, show small placeholder.
+        try {
+            ImageIcon logoIcon = loadLogoIcon();
+            if (logoIcon != null) {
+                logoLabel.setIcon(logoIcon);
+            } else {
+                logoLabel.setText(" "); // keep space so header layout stays consistent
+                logoLabel.setPreferredSize(new Dimension(90, 60));
+            }
+        } catch (Throwable t) {
+            LOGGER.log(Level.FINER, "Error loading logo", t);
+            logoLabel.setText(" ");
+            logoLabel.setPreferredSize(new Dimension(90, 60));
+        }
+
+        JLabel titleLabel = new JLabel("Daily Field Report");
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 18f));
+        titleLabel.setHorizontalAlignment(SwingConstants.LEFT);
+        JPanel titleWrapper = new JPanel(new BorderLayout());
+        titleWrapper.add(titleLabel, BorderLayout.CENTER);
+        titleWrapper.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        header.add(logoLabel, BorderLayout.WEST);
+        header.add(titleWrapper, BorderLayout.CENTER);
+
+        rootPanel.add(header, BorderLayout.NORTH);
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
@@ -84,9 +135,71 @@ public class DailyFieldReport {
         JButton saveButton = new JButton("Save Report");
         saveButton.addActionListener(e -> saveReport());
 
-        frame.add(tabbedPane, BorderLayout.CENTER);
-        frame.add(saveButton, BorderLayout.SOUTH);
+        rootPanel.add(tabbedPane, BorderLayout.CENTER);
+        rootPanel.add(saveButton, BorderLayout.SOUTH);
+
+        frame.setContentPane(rootPanel);
         frame.setVisible(true);
+    }
+
+    // Load logo.png from classpath (src/main/resources/logo.png) and return a scaled ImageIcon.
+    // Returns null if no logo is found or on error. If logo resource isn't present, generate a simple
+    // placeholder image so the header still shows a visual.
+    private ImageIcon loadLogoIcon() {
+        try (InputStream is = getClass().getResourceAsStream("/logo.png")) {
+            if (is != null) {
+                BufferedImage img = ImageIO.read(is);
+                if (img != null) {
+                    int targetHeight = 60; // desired displayed height in px
+                    int width = (int) ((double) img.getWidth() * targetHeight / img.getHeight());
+                    Image scaled = img.getScaledInstance(width, targetHeight, Image.SCALE_SMOOTH);
+                    return new ImageIcon(scaled);
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.FINE, "Failed to load logo.png from classpath", e);
+        } catch (Throwable t) {
+            LOGGER.log(Level.FINER, "Unexpected error while loading logo resource", t);
+        }
+
+        // Resource not found or failed to read: create a simple placeholder image programmatically
+        try {
+            int targetHeight = 60;
+            int width = 140;
+            BufferedImage placeholder = new BufferedImage(width, targetHeight, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = placeholder.createGraphics();
+            try {
+                // background
+                g.setColor(new Color(0x2E6FB3));
+                g.fillRect(0, 0, width, targetHeight);
+                // draw a simple white square and initials
+                g.setColor(Color.WHITE);
+                g.fillRect(6, 6, targetHeight - 12, targetHeight - 12);
+                // draw initials of app
+                g.setFont(g.getFont().deriveFont(Font.BOLD, 18f));
+                g.setColor(new Color(0xFFFFFF));
+                FontMetrics fm = g.getFontMetrics();
+                String initials = "DFR";
+                int tx = (6 + (targetHeight - 12) - fm.stringWidth(initials)) / 2 + 6;
+                int ty = (targetHeight - (fm.getHeight())) / 2 + fm.getAscent();
+                g.drawString(initials, tx, ty);
+                // small app name to the right
+                g.setFont(g.getFont().deriveFont(Font.PLAIN, 14f));
+                g.setColor(Color.WHITE);
+                g.drawString("Daily Field Report", targetHeight, targetHeight / 2 + 6);
+            } finally {
+                g.dispose();
+            }
+            return new ImageIcon(placeholder);
+        } catch (Throwable t) {
+            LOGGER.log(Level.FINER, "Failed to generate placeholder logo", t);
+            return null;
+        }
+    }
+
+    // Expose form data collection for external callers / tests
+    public String exportFormDataToString() {
+        return collectFormData();
     }
 
     private JPanel createGeneralInfoPanel() {
@@ -165,12 +278,85 @@ public class DailyFieldReport {
         return panel;
     }
 
+    // Attachments panel now supports attaching photos and showing thumbnails
     private JPanel createAttachmentsPanel() {
-        JPanel panel = new JPanel(new GridLayout(3, 1));
-        panel.add(photosCheck);
-        panel.add(testsCheck);
-        panel.add(drawingsCheck);
+        JPanel panel = new JPanel(new BorderLayout(5,5));
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton attachBtn = new JButton("Attach Photos...");
+        JButton clearBtn = new JButton("Clear Photos");
+
+        attachBtn.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setMultiSelectionEnabled(true);
+            chooser.setFileFilter(new FileNameExtensionFilter("Image files", ImageIO.getReaderFileSuffixes()));
+            int res = chooser.showOpenDialog(null);
+            if (res == JFileChooser.APPROVE_OPTION) {
+                File[] files = chooser.getSelectedFiles();
+                addPhotos(files);
+            }
+        });
+
+        clearBtn.addActionListener(e -> {
+            photoPaths.clear();
+            refreshPhotoThumbs();
+        });
+
+        top.add(attachBtn);
+        top.add(clearBtn);
+
+        photoThumbPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
+        photoScrollPane = new JScrollPane(photoThumbPanel);
+        photoScrollPane.setPreferredSize(new Dimension(800, 200));
+        panel.add(top, BorderLayout.NORTH);
+        panel.add(photoScrollPane, BorderLayout.CENTER);
+
+        // keep existing attachments checkboxes for compatibility
+        JPanel bottomChecks = new JPanel(new GridLayout(1, 3));
+        bottomChecks.add(photosCheck);
+        bottomChecks.add(testsCheck);
+        bottomChecks.add(drawingsCheck);
+        panel.add(bottomChecks, BorderLayout.SOUTH);
+
         return panel;
+    }
+
+    private void addPhotos(File[] files) {
+        for (File f : files) {
+            try {
+                Path p = f.toPath();
+                if (Files.exists(p) && Files.isRegularFile(p)) {
+                    photoPaths.add(p);
+                }
+            } catch (Throwable t) {
+                LOGGER.log(Level.WARNING, "Failed to add photo: " + f, t);
+            }
+        }
+        photosCheck.setSelected(!photoPaths.isEmpty());
+        refreshPhotoThumbs();
+    }
+
+    private void refreshPhotoThumbs() {
+        SwingUtilities.invokeLater(() -> {
+            photoThumbPanel.removeAll();
+            for (Path p : photoPaths) {
+                try {
+                    BufferedImage img = ImageIO.read(p.toFile());
+                    if (img == null) continue;
+                    int targetH = 90;
+                    int w = (int) ((double) img.getWidth() * targetH / img.getHeight());
+                    Image scaled = img.getScaledInstance(w, targetH, Image.SCALE_SMOOTH);
+                    JLabel lbl = new JLabel(new ImageIcon(scaled));
+                    lbl.setToolTipText(p.getFileName().toString());
+                    lbl.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+                    photoThumbPanel.add(lbl);
+                } catch (Throwable t) {
+                    LOGGER.log(Level.WARNING, "Failed to load thumbnail for " + p, t);
+                }
+            }
+            photoThumbPanel.revalidate();
+            photoThumbPanel.repaint();
+        });
     }
 
     private JPanel wrapTableWithLabel(JTable table) {
@@ -206,15 +392,60 @@ public class DailyFieldReport {
             if (result != JFileChooser.APPROVE_OPTION) return;
 
             String chosen = chooser.getSelectedFile().getAbsolutePath();
+
+            // Capture the current form UI as an image so export preserves exact design
+            BufferedImage snapshot = null;
+            try {
+                snapshot = captureComponentAsImage(rootPanel);
+            } catch (Exception captureEx) {
+                LOGGER.log(Level.WARNING, "Failed to capture form image", captureEx);
+            }
+
             String reportContent = collectFormData();
 
+            // Validate chosen path and ensure parent directory exists and is writable
             try {
-                if (choice == 0) { // PDF
+                java.nio.file.Path chosenPath = Paths.get(chosen);
+                java.nio.file.Path parent = chosenPath.getParent();
+                if (parent != null) {
+                    if (!Files.exists(parent)) {
+                        try {
+                            Files.createDirectories(parent);
+                        } catch (IOException | SecurityException dirEx) {
+                            String msg = "Unable to create directory '" + parent + "': " + dirEx.getMessage();
+                            LOGGER.log(Level.SEVERE, msg, dirEx);
+                            JOptionPane.showMessageDialog(null, msg);
+                            return;
+                        }
+                    }
+                    if (!Files.isWritable(parent)) {
+                        String msg = "Directory '" + parent + "' is not writable.";
+                        LOGGER.warning(msg);
+                        JOptionPane.showMessageDialog(null, msg);
+                        return;
+                    }
+                }
+            } catch (java.nio.file.InvalidPathException ipEx) {
+                String msg = "Invalid file path: " + ipEx.getInput();
+                LOGGER.log(Level.SEVERE, msg, ipEx);
+                JOptionPane.showMessageDialog(null, msg);
+                return;
+            } catch (SecurityException secEx) {
+                String msg = "Security manager prevents validating/creating path: " + secEx.getMessage();
+                LOGGER.log(Level.SEVERE, msg, secEx);
+                JOptionPane.showMessageDialog(null, msg);
+                return;
+            }
+
+            try {
+                if (choice == 0) { // PDF (use snapshot if available)
                     if (!chosen.toLowerCase().endsWith(".pdf")) chosen += ".pdf";
-                    saveAsPDF(chosen, reportContent);
+                    if (snapshot != null) saveAsPDFImage(chosen, snapshot);
+                    else saveAsPDF(chosen, reportContent);
                 } else if (choice == 1) { // Word
                     if (!chosen.toLowerCase().endsWith(".docx")) chosen += ".docx";
-                    saveAsWord(chosen, reportContent);
+                    if (snapshot != null) saveAsWordImage(chosen, snapshot);
+                    else saveAsWord(chosen, reportContent);
                 } else { // Plain text
                     if (!chosen.toLowerCase().endsWith(".txt")) chosen += ".txt";
                     Files.write(Paths.get(chosen), reportContent.getBytes(StandardCharsets.UTF_8));
@@ -226,31 +457,158 @@ public class DailyFieldReport {
                 } else {
                     JOptionPane.showMessageDialog(null, "Report saved: " + chosen);
                 }
-            } catch (NoClassDefFoundError e) {
+            } catch (NoClassDefFoundError | ClassNotFoundException libEx) {
                 // Handle missing library for PDF/Word export
-                String msg = "Export failed because required libraries are missing.\n\n" +
-                        "To enable full PDF/Word export, re-import the Maven project so PDFBox and Apache POI dependencies are downloaded.";
-                JOptionPane.showMessageDialog(null, msg);
-                LOGGER.log(Level.SEVERE, "Export failed - missing libraries", e);
-
-                // Fallback: write report as plain text
-                try {
-                    Files.write(Paths.get(chosen + ".fallback.txt"), reportContent.getBytes(StandardCharsets.UTF_8));
-                    JOptionPane.showMessageDialog(null, "A plain-text fallback was saved to:\n" + chosen + ".fallback.txt");
-                } catch (IOException ioException) {
-                    JOptionPane.showMessageDialog(null, "Error saving plain-text fallback: " + ioException.getMessage());
-                    LOGGER.log(Level.SEVERE, "Error saving plain-text fallback", ioException);
-                }
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(null, "IO error saving report: " + e.getMessage());
-                LOGGER.log(Level.SEVERE, "IO error saving report", e);
+                writeFallbackAndLog(chosen, reportContent, libEx, "Required libraries (PDFBox/POI) are missing.");
+            } catch (SecurityException secEx) {
+                // Permission problem writing file
+                writeFallbackAndLog(chosen, reportContent, secEx, "Security error while attempting to write the file.");
+            } catch (IOException ioEx) {
+                // IO problems (disk full, permission, etc.)
+                writeFallbackAndLog(chosen, reportContent, ioEx, "I/O error while saving the file.");
+            } catch (IllegalArgumentException iaEx) {
+                // invalid arguments / path
+                writeFallbackAndLog(chosen, reportContent, iaEx, "Invalid argument while saving the file.");
+            } catch (OutOfMemoryError oom) {
+                LOGGER.log(Level.SEVERE, "Out of memory while generating the report", oom);
+                JOptionPane.showMessageDialog(null, "Not enough memory to generate the report. Try saving a smaller report.");
             } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, "Error saving report: " + e.getMessage());
-                LOGGER.log(Level.SEVERE, "Unexpected error saving report", e);
+                // Generic fallback
+                writeFallbackAndLog(chosen, reportContent, e, "Unexpected error while saving the report.");
             }
         } catch (Exception ex) {
             LOGGER.log(Level.SEVERE, "Error saving report", ex);
             JOptionPane.showMessageDialog(null, "Error saving report: " + ex.getMessage());
+        }
+    }
+
+    // Capture a Swing component to a BufferedImage. The component must be realized (displayed) for accurate rendering.
+    private BufferedImage captureComponentAsImage(Component comp) throws IllegalArgumentException {
+        if (comp == null) throw new IllegalArgumentException("Component to capture is null");
+        int w = comp.getWidth();
+        int h = comp.getHeight();
+        if (w <= 0 || h <= 0) {
+            // try to layout and use preferred size
+            Dimension pref = comp.getPreferredSize();
+            w = Math.max(1, pref.width);
+            h = Math.max(1, pref.height);
+            comp.setSize(w, h);
+        }
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = img.createGraphics();
+        try {
+            // white background
+            g2.setColor(Color.WHITE);
+            g2.fillRect(0, 0, w, h);
+            comp.paintAll(g2);
+        } finally {
+            g2.dispose();
+        }
+        return img;
+    }
+
+    // Save a BufferedImage into a PDF page, scaling to fit the page while preserving aspect ratio.
+    private void saveAsPDFImage(String filePath, BufferedImage image) throws Exception {
+        try (PDDocument document = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+
+            // convert image to byte array (PNG)
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", baos);
+            byte[] bytes = baos.toByteArray();
+
+            org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject pdImage = org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromByteArray(document, bytes, "screenshot");
+
+            float pageW = page.getMediaBox().getWidth();
+            float pageH = page.getMediaBox().getHeight();
+            float margin = 40f;
+            float maxW = pageW - 2 * margin;
+            float maxH = pageH - 2 * margin;
+
+            float imgW = pdImage.getWidth();
+            float imgH = pdImage.getHeight();
+            float scale = Math.min(maxW / imgW, maxH / imgH);
+            float drawW = imgW * scale;
+            float drawH = imgH * scale;
+
+            float x = (pageW - drawW) / 2f;
+            float y = (pageH - drawH) / 2f;
+
+            try (PDPageContentStream cs = new PDPageContentStream(document, page)) {
+                cs.drawImage(pdImage, x, y, drawW, drawH);
+            }
+
+            // append attached photos as additional pages
+            appendPhotosToPdf(document);
+
+            document.save(filePath);
+        }
+    }
+
+    // Save a BufferedImage into a .docx by embedding the image as a PNG.
+    private void saveAsWordImage(String filePath, BufferedImage image) throws Exception {
+        try (XWPFDocument doc = new XWPFDocument()) {
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", baos);
+            byte[] bytes = baos.toByteArray();
+
+            XWPFParagraph p = doc.createParagraph();
+            XWPFRun run = p.createRun();
+            try (java.io.ByteArrayInputStream in = new java.io.ByteArrayInputStream(bytes)) {
+                run.addPicture(in, org.apache.poi.xwpf.usermodel.Document.PICTURE_TYPE_PNG, filePath, org.apache.poi.util.Units.toEMU(image.getWidth()), org.apache.poi.util.Units.toEMU(image.getHeight()));
+            }
+
+            // append attached photos to Word
+            appendPhotosToWord(doc);
+
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(filePath)) {
+                doc.write(out);
+            }
+        } catch (Exception e) {
+            // Log and show detailed error
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String stackTrace = sw.toString();
+
+            String msg = "Error saving as Word document: " + e.getMessage() + "\n\nStack Trace:\n" + stackTrace;
+            JOptionPane.showMessageDialog(null, msg, "Word Save Error", JOptionPane.ERROR_MESSAGE);
+            LOGGER.log(Level.SEVERE, "Error saving as Word document", e);
+            throw e; // rethrow after logging
+        }
+    }
+
+    // Centralized fallback writer and logger
+    private void writeFallbackAndLog(String chosen, String reportContent, Throwable cause, String userMessage) {
+        try {
+            LOGGER.log(Level.SEVERE, userMessage, cause);
+            String fallbackPath = chosen + ".fallback.txt";
+            try {
+                Files.write(Paths.get(fallbackPath), reportContent.getBytes(StandardCharsets.UTF_8));
+                JOptionPane.showMessageDialog(null, userMessage + "\nA plain-text fallback was saved to:\n" + fallbackPath);
+            } catch (IOException ioEx) {
+                // last-resort: attempt to write to temp directory
+                try {
+                    java.nio.file.Path tmp = Files.createTempFile("DailyFieldReport-fallback-", ".txt");
+                    Files.write(tmp, reportContent.getBytes(StandardCharsets.UTF_8));
+                    String msg = userMessage + "\nFailed to write to chosen location; fallback saved to temp file:\n" + tmp.toAbsolutePath();
+                    JOptionPane.showMessageDialog(null, msg);
+                    LOGGER.log(Level.SEVERE, "Saved fallback to temp file", ioEx);
+                } catch (IOException tempEx) {
+                    String msg = userMessage + "\nFailed to write fallback file: " + tempEx.getMessage();
+                    JOptionPane.showMessageDialog(null, msg);
+                    LOGGER.log(Level.SEVERE, "Failed to save any fallback file", tempEx);
+                }
+            }
+        } catch (Throwable logEx) {
+            // If logging or dialogs also fail, there's not much we can do programmatically.
+            try {
+                StringWriter sw = new StringWriter();
+                cause.printStackTrace(new PrintWriter(sw));
+                Files.write(Paths.get(System.getProperty("java.io.tmpdir"), "DailyFieldReport-error.log"), sw.toString().getBytes(StandardCharsets.UTF_8));
+            } catch (Throwable ignored) {
+                // swallow - we can't do more
+            }
         }
     }
 
@@ -280,7 +638,7 @@ public class DailyFieldReport {
         sb.append("Directions: ").append(directionsField.getText()).append("\n\n");
 
         sb.append("ATTACHMENTS:\n");
-        if (photosCheck.isSelected()) sb.append(" - Photos attached\n");
+        if (photosCheck.isSelected()) sb.append(" - Photos attached: ").append(photoPaths.size()).append("\n");
         if (testsCheck.isSelected()) sb.append(" - Test results attached\n");
         if (drawingsCheck.isSelected()) sb.append(" - Drawings/Sketches attached\n");
 
@@ -341,14 +699,14 @@ public class DailyFieldReport {
                         // fallback to character-count approximation if font metrics unavailable
                         textWidth = candidate.length() * fontSize * 0.5f;
                     }
-                     if (textWidth <= maxWidth) {
-                         line = candidate;
-                     } else {
-                         cs.showText(line);
-                         cs.newLine();
-                         line = word;
-                     }
-                 }
+                    if (textWidth <= maxWidth) {
+                        line = candidate;
+                    } else {
+                        cs.showText(line);
+                        cs.newLine();
+                        line = word;
+                    }
+                }
                 if (!line.isEmpty()) {
                     cs.showText(line);
                     cs.newLine();
@@ -357,6 +715,10 @@ public class DailyFieldReport {
 
             cs.endText();
             cs.close();
+
+            // Append attached photos as extra pages
+            appendPhotosToPdf(document);
+
             document.save(filePath);
         } catch (Exception e) {
             // Log and show detailed error
@@ -368,6 +730,39 @@ public class DailyFieldReport {
             JOptionPane.showMessageDialog(null, msg, "PDF Save Error", JOptionPane.ERROR_MESSAGE);
             LOGGER.log(Level.SEVERE, "Error saving as PDF", e);
             throw e; // rethrow after logging
+        }
+    }
+
+    private void appendPhotosToPdf(PDDocument document) {
+        for (Path p : photoPaths) {
+            try {
+                File f = p.toFile();
+                if (!f.exists()) continue;
+                org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject pdImg = org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromFileByContent(f, document);
+                PDPage page = new PDPage(PDRectangle.LETTER);
+                document.addPage(page);
+
+                float pageW = page.getMediaBox().getWidth();
+                float pageH = page.getMediaBox().getHeight();
+                float margin = 40f;
+                float maxW = pageW - 2 * margin;
+                float maxH = pageH - 2 * margin;
+
+                float imgW = pdImg.getWidth();
+                float imgH = pdImg.getHeight();
+                float scale = Math.min(maxW / imgW, maxH / imgH);
+                float drawW = imgW * scale;
+                float drawH = imgH * scale;
+
+                float x = (pageW - drawW) / 2f;
+                float y = (pageH - drawH) / 2f;
+
+                try (PDPageContentStream cs = new PDPageContentStream(document, page)) {
+                    cs.drawImage(pdImg, x, y, drawW, drawH);
+                }
+            } catch (Throwable t) {
+                LOGGER.log(Level.WARNING, "Failed to append photo to PDF: " + p, t);
+            }
         }
     }
 
@@ -384,6 +779,10 @@ public class DailyFieldReport {
                     run.setText(lines[i], i);
                 }
             }
+
+            // append photos
+            appendPhotosToWord(doc);
+
             try (java.io.FileOutputStream out = new java.io.FileOutputStream(filePath)) {
                 doc.write(out);
             }
@@ -400,16 +799,43 @@ public class DailyFieldReport {
         }
     }
 
+    private void appendPhotosToWord(XWPFDocument doc) {
+        for (Path p : photoPaths) {
+            try {
+                File f = p.toFile();
+                if (!f.exists()) continue;
+                BufferedImage img = ImageIO.read(f);
+                if (img == null) continue;
+                int width = img.getWidth();
+                int height = img.getHeight();
+
+                XWPFParagraph picPara = doc.createParagraph();
+                XWPFRun picRun = picPara.createRun();
+                try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                    picRun.addPicture(in, org.apache.poi.xwpf.usermodel.Document.PICTURE_TYPE_PNG, f.getName(),
+                            org.apache.poi.util.Units.toEMU(width), org.apache.poi.util.Units.toEMU(height));
+                }
+            } catch (Throwable t) {
+                LOGGER.log(Level.WARNING, "Failed to append photo to Word doc: " + p, t);
+            }
+        }
+    }
+
     // Try to open a file using the desktop integration when available, otherwise fall back to
     // platform-specific commands (Windows cmd start, macOS open, Linux xdg-open).
     private void openFile(String path) {
         try {
             if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
-                java.awt.Desktop.getDesktop().open(new java.io.File(path));
-                return;
+                try {
+                    java.awt.Desktop.getDesktop().open(new java.io.File(path));
+                    return;
+                } catch (IOException | SecurityException e) {
+                    LOGGER.log(Level.WARNING, "Desktop.open failed, will try platform fallback", e);
+                }
             }
         } catch (Throwable ignored) {
             // try platform fallback
+            LOGGER.log(Level.FINE, "Desktop API not available or failed", ignored);
         }
 
         String os = System.getProperty("os.name").toLowerCase();
@@ -422,9 +848,14 @@ public class DailyFieldReport {
             } else {
                 new ProcessBuilder("xdg-open", path).start();
             }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Saved but couldn't open file automatically: " + e.getMessage());
-            LOGGER.log(Level.WARNING, "Error opening file automatically", e);
+        } catch (IOException ioe) {
+            String msg = "Saved but couldn't open file automatically: " + ioe.getMessage();
+            JOptionPane.showMessageDialog(null, msg);
+            LOGGER.log(Level.WARNING, "Error opening file automatically", ioe);
+        } catch (SecurityException se) {
+            String msg = "Saved but automatic opening is blocked by security manager: " + se.getMessage();
+            JOptionPane.showMessageDialog(null, msg);
+            LOGGER.log(Level.WARNING, "Security exception opening file", se);
         }
     }
 }

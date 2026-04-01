@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Daily Field Report - Web UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    label { display:block; margin-top:8px; }
+    textarea { width: 100%; height: 120px; }
+    .thumb { max-height: 90px; margin-right:8px; border: 1px solid #ccc; padding:2px; }
+    .row { display:flex; gap:8px; }
+  </style>
+</head>
+<body>
+  <h1>Daily Field Report (Web)</h1>
+  <form id="reportForm">
+    <label>Project Name: <input name="projectName" /></label>
+    <label>Project No.: <input name="projectNo" /></label>
+    <label>Location: <input name="location" /></label>
+    <label>Date: <input name="date" value=""></label>
+    <label>Weather: <input name="weather" /></label>
+    <label>Temperature: <input name="temperature" /></label>
+    <label>Wind: <input name="wind" /></label>
+
+    <label>Work Performed:</label>
+    <textarea name="workPerformed"></textarea>
+
+    <label><input type="checkbox" name="safetyMeeting" value="true"/> Safety Meeting Held</label>
+    <label>Safety Topic: <input name="safetyTopic" /></label>
+    <label>Safety Attendees: <input name="safetyAttendees" /></label>
+    <label><input type="checkbox" name="safetyIncident" value="true"/> Incidents / Near Misses</label>
+
+    <label>Visitors: <input name="visitors" /></label>
+    <label>Meetings: <input name="meetings" /></label>
+    <label>Directions: <input name="directions" /></label>
+
+    <label>Attach Photos: <input type="file" id="photos" multiple accept="image/*" /></label>
+    <div id="thumbs" class="row"></div>
+
+    <p>
+      <button type="button" id="sendBtn">Generate PDF</button>
+    </p>
+  </form>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // set default date
+      document.querySelector('[name=date]').value = new Date().toISOString().slice(0,10);
+
+      const photosInput = document.getElementById('photos');
+      const thumbs = document.getElementById('thumbs');
+      let photos = [];
+
+      photosInput.addEventListener('change', function(ev) {
+        thumbs.innerHTML = '';
+        photos = [];
+        const files = Array.from(ev.target.files || []);
+        files.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const img = new Image();
+            img.src = e.target.result;
+            img.className = 'thumb';
+            thumbs.appendChild(img);
+            photos.push(e.target.result);
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+
+      document.getElementById('sendBtn').addEventListener('click', async function() {
+        const form = document.getElementById('reportForm');
+        const fd = new FormData(form);
+        const fields = {};
+        for (const [k,v] of fd.entries()) {
+          if (fields[k]) {
+            // already present (checkbox / multi)
+          }
+          fields[k] = v;
+        }
+        // include checkbox booleans that may be unchecked
+        fields['safetyMeeting'] = form.querySelector('[name=safetyMeeting]')?.checked ? 'true' : 'false';
+        fields['safetyIncident'] = form.querySelector('[name=safetyIncident]')?.checked ? 'true' : 'false';
+
+        const payload = { fields: fields, photosBase64: photos };
+        try {
+          const res = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) {
+            alert('Server returned error: ' + res.status);
+            return;
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'DailyFieldReport.pdf';
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          alert('Failed to send report: ' + e.message);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
