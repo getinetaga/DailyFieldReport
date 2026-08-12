@@ -1,66 +1,783 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Daily Field Report - Web UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Field Report</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    label { display:block; margin-top:8px; }
-    textarea { width: 100%; height: 120px; }
-    .thumb { max-height: 90px; margin-right:8px; border: 1px solid #ccc; padding:2px; }
-    .row { display:flex; gap:8px; }
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #d8e0ea;
+      --text: #243447;
+      --muted: #64748b;
+      --accent: #2e6fb3;
+      --accent-soft: #eaf2fb;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Inter, Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(46, 111, 179, 0.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(46, 111, 179, 0.08), transparent 22%),
+        linear-gradient(180deg, #eef3f9 0%, var(--bg) 100%);
+    }
+    .page {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #ffffff 0%, #f6faff 100%);
+      border: 1px solid rgba(216, 224, 234, 0.9);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .hero-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+      gap: 22px;
+      align-items: stretch;
+    }
+    .hero-copy {
+      display: grid;
+      align-content: center;
+      gap: 14px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(46, 111, 179, 0.08);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 40px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 68ch;
+    }
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: #36516f;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+    }
+    .hero-panel {
+      background: linear-gradient(180deg, #2e6fb3 0%, #245f9b 100%);
+      color: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .panel-title {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+    }
+    .panel-list {
+      display: grid;
+      gap: 10px;
+    }
+    .panel-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.11);
+    }
+    .panel-item strong {
+      display: block;
+      font-size: 14px;
+    }
+    .panel-item span {
+      color: rgba(255,255,255,0.84);
+      font-size: 13px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+    .card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
+    .span-12 { grid-column: span 12; }
+    .span-8 { grid-column: span 8; }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+    .span-3 { grid-column: span 3; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 19px;
+      letter-spacing: -0.01em;
+    }
+    .muted { color: var(--muted); }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+    .subsection {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fbfdff;
+    }
+    .subsection + .subsection {
+      margin-top: 12px;
+    }
+    .subsection-title {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .general-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: rgba(46, 111, 179, 0.65);
+      box-shadow: 0 0 0 4px rgba(46, 111, 179, 0.12);
+    }
+    textarea {
+      min-height: 104px;
+      resize: vertical;
+    }
+    .compact textarea { min-height: 76px; }
+    .checkboxes {
+      display: grid;
+      gap: 10px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .check input { width: auto; }
+    .action-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary {
+      background: linear-gradient(135deg, #2e6fb3 0%, #3d87cd 100%);
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 10px 22px rgba(46, 111, 179, 0.26);
+    }
+    .btn.secondary {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .btn.danger {
+      background: #fcebea;
+      color: var(--danger);
+      font-weight: 700;
+      padding: 8px 12px;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: linear-gradient(180deg, #fbfdff 0%, #f1f6fb 100%);
+      font-size: 13px;
+      color: #36516f;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tfoot td {
+      background: #f8fbff;
+      font-weight: 700;
+    }
+    tfoot .total-label {
+      text-align: right;
+      color: #36516f;
+    }
+    tfoot .total-value {
+      color: var(--accent);
+      text-align: left;
+    }
+    tfoot .total-value strong {
+      font-weight: 700;
+    }
+    td input, td select, td textarea {
+      min-width: 120px;
+    }
+    .personnel-controls {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .personnel-controls .btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    .personnel-details-row td {
+      background: #fbfdff;
+    }
+    .personnel-note {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+    }
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .table-toolbar h2 {
+      margin-bottom: 2px;
+    }
+    .thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .thumb {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .status {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .page-footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      padding: 8px 0 2px;
+    }
+    @media (max-width: 980px) {
+      .span-8, .span-6, .span-4, .span-3 { grid-column: span 12; }
+      .field-grid { grid-template-columns: 1fr; }
+      .hero-layout { grid-template-columns: 1fr; }
+      .hero h1 { font-size: 32px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Daily Field Report (Web)</h1>
-  <form id="reportForm">
-    <label>Project Name: <input name="projectName" /></label>
-    <label>Project No.: <input name="projectNo" /></label>
-    <label>Location: <input name="location" /></label>
-    <label>Date: <input name="date" value=""></label>
-    <label>Weather: <input name="weather" /></label>
-    <label>Temperature: <input name="temperature" /></label>
-    <label>Wind: <input name="wind" /></label>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-layout">
+        <div class="hero-copy">
+          <div class="eyebrow">Daily Field Reporting</div>
+          <h1>Professional site reporting, built for the field.</h1>
+          <p>Capture daily activity, crews, equipment, materials, safety notes, and photos in one polished report workflow. Export as PDF, Word, or plain text when you’re done.</p>
+          <div class="hero-badges">
+            <span class="badge">PDF Export</span>
+            <span class="badge">Word Document</span>
+            <span class="badge">Photo Attachments</span>
+            <span class="badge">Crew Totals</span>
+          </div>
+        </div>
+        <aside class="hero-panel">
+          <div class="panel-title">Report at a glance</div>
+          <div class="panel-list">
+            <div class="panel-item"><strong>General Info</strong><span>Project + weather summary</span></div>
+            <div class="panel-item"><strong>Personnel Table</strong><span>Hours tracked and totaled</span></div>
+            <div class="panel-item"><strong>Attachments</strong><span>Photos with PDF layout</span></div>
+          </div>
+        </aside>
+      </div>
+    </header>
 
-    <label>Work Performed:</label>
-    <textarea name="workPerformed"></textarea>
+    <form id="reportForm" class="form-grid">
+      <section class="card span-8">
+        <div class="section-head">
+          <h2>General Information</h2>
+          <span class="muted">Project details and weather summary</span>
+        </div>
+        <div class="subsection">
+          <div class="subsection-title">Project Details</div>
+          <div class="general-grid">
+            <div><label for="projectName">Project Name</label><input id="projectName" name="projectName" /></div>
+            <div><label for="projectNo">Project No.</label><input id="projectNo" name="projectNo" /></div>
+            <div><label for="location">Location</label><input id="location" name="location" /></div>
+            <div><label for="date">Date</label><input id="date" name="date" type="date" /></div>
+          </div>
+        </div>
+        <div class="subsection">
+          <div class="subsection-title">Weather Conditions</div>
+          <div class="general-grid">
+            <div><label for="weather">Weather</label><input id="weather" name="weather" /></div>
+            <div><label for="temperature">Temperature</label><input id="temperature" name="temperature" /></div>
+            <div class="span-12"><label for="wind">Wind</label><input id="wind" name="wind" /></div>
+          </div>
+        </div>
+      </section>
 
-    <label><input type="checkbox" name="safetyMeeting" value="true"/> Safety Meeting Held</label>
-    <label>Safety Topic: <input name="safetyTopic" /></label>
-    <label>Safety Attendees: <input name="safetyAttendees" /></label>
-    <label><input type="checkbox" name="safetyIncident" value="true"/> Incidents / Near Misses</label>
+      <section class="card span-4">
+        <div class="section-head">
+          <h2>Coordination</h2>
+        </div>
+        <div class="stack">
+          <div><label for="visitors">Visitors</label><input id="visitors" name="visitors" /></div>
+          <div><label for="meetings">Meetings / Coordination Notes</label><input id="meetings" name="meetings" /></div>
+          <div><label for="directions">Directions / Instructions</label><input id="directions" name="directions" /></div>
+        </div>
+      </section>
 
-    <label>Visitors: <input name="visitors" /></label>
-    <label>Meetings: <input name="meetings" /></label>
-    <label>Directions: <input name="directions" /></label>
+      <section class="card span-12">
+        <div class="section-head">
+          <h2>Work Performed</h2>
+          <span class="muted">Describe the day’s activities</span>
+        </div>
+        <textarea id="workPerformed" name="workPerformed"></textarea>
+      </section>
 
-    <label>Attach Photos: <input type="file" id="photos" multiple accept="image/*" /></label>
-    <div id="thumbs" class="row"></div>
+      <section class="card span-12">
+        <div class="table-toolbar">
+          <div>
+            <h2>Personnel</h2>
+            <div class="muted">One row per crew or company</div>
+          </div>
+          <button class="btn secondary" type="button" data-add-row="personnel">Add row</button>
+        </div>
+        <div class="table-wrap">
+          <table data-section="personnel">
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Trade / Role</th>
+                <th>No. of Workers</th>
+                <th>Hours Worked</th>
+                <th>Foreman / Supervisor</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3"></td>
+                <td class="total-value"><strong>Total Hours: <span id="personnelTotalHours">0.00</span></strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
 
-    <p>
-      <button type="button" id="sendBtn">Generate PDF</button>
-    </p>
-  </form>
+      <section class="card span-12">
+        <div class="table-toolbar">
+          <div>
+            <h2>Equipment</h2>
+            <div class="muted">Tracked equipment and operating status</div>
+          </div>
+          <button class="btn secondary" type="button" data-add-row="equipment">Add row</button>
+        </div>
+        <div class="table-wrap">
+          <table data-section="equipment">
+            <thead>
+              <tr>
+                <th>Equipment</th>
+                <th>Type / Size</th>
+                <th>Quantity</th>
+                <th>Operating</th>
+                <th>Idle Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="section-head">
+          <h2>Safety</h2>
+          <span class="muted">Daily safety meeting details</span>
+        </div>
+        <div class="field-grid">
+          <label class="check span-12"><input type="checkbox" id="safetyMeeting" name="safetyMeeting" value="true" /> Safety meeting held</label>
+          <div><label for="safetyTopic">Topic</label><input id="safetyTopic" name="safetyTopic" /></div>
+          <div><label for="safetyAttendees">Attendees</label><input id="safetyAttendees" name="safetyAttendees" /></div>
+          <label class="check span-12"><input type="checkbox" id="safetyIncident" name="safetyIncident" value="true" /> Incidents / Near misses</label>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="table-toolbar">
+          <div>
+            <h2>Materials</h2>
+            <div class="muted">Delivered, stored, and inspected materials</div>
+          </div>
+          <button class="btn secondary" type="button" data-add-row="materials">Add row</button>
+        </div>
+        <div class="table-wrap">
+          <table data-section="materials">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Supplier</th>
+                <th>Quantity</th>
+                <th>Location Used / Stored</th>
+                <th>Inspection Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="table-toolbar">
+          <div>
+            <h2>Inspections / Tests</h2>
+            <div class="muted">One row per inspection or test result</div>
+          </div>
+          <button class="btn secondary" type="button" data-add-row="inspections">Add row</button>
+        </div>
+        <div class="table-wrap">
+          <table data-section="inspections">
+            <thead>
+              <tr>
+                <th>Inspection / Test</th>
+                <th>Inspector / Agency</th>
+                <th>Result</th>
+                <th>Remarks</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="table-toolbar">
+          <div>
+            <h2>Delays / Issues</h2>
+            <div class="muted">Document schedule, cost, and safety impacts</div>
+          </div>
+          <button class="btn secondary" type="button" data-add-row="delays">Add row</button>
+        </div>
+        <div class="table-wrap">
+          <table data-section="delays">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Impact</th>
+                <th>Corrective Action / Remarks</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="section-head">
+          <h2>Attachments</h2>
+          <span class="muted">Photos and extra report notes</span>
+        </div>
+        <div class="field-grid">
+          <div class="span-12">
+            <label for="photos">Attach Photos</label>
+            <input id="photos" type="file" accept="image/*" multiple />
+            <div id="thumbs" class="thumbs"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="photosCheck" name="photosCheck" value="true" /> Photos attached</label>
+          <label class="check"><input type="checkbox" id="testsCheck" name="testsCheck" value="true" /> Test results attached</label>
+          <label class="check"><input type="checkbox" id="drawingsCheck" name="drawingsCheck" value="true" /> Drawings / Sketches attached</label>
+        </div>
+      </section>
+
+      <section class="card span-12">
+        <div class="action-row">
+          <div>
+            <label for="format">Export format</label>
+            <select id="format" name="format">
+              <option value="pdf">PDF</option>
+              <option value="docx">Word Document</option>
+              <option value="txt">Plain Text</option>
+            </select>
+          </div>
+          <div class="footer-actions">
+            <button class="btn primary" type="submit">Generate Report</button>
+          </div>
+        </div>
+        <div id="status" class="status" aria-live="polite"></div>
+      </section>
+    </form>
+    <div class="page-footer">Daily Field Report • site-ready reporting and export</div>
+  </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // set default date
-      document.querySelector('[name=date]').value = new Date().toISOString().slice(0,10);
+    (() => {
+      const tableConfigs = {
+        personnel: {
+          headers: ['Company', 'Trade / Role', 'No. of Workers', 'Hours Worked', 'Foreman / Supervisor'],
+          placeholders: ['Acme Corp', 'Carpentry', '5', '8', 'John Doe']
+        },
+        equipment: {
+          headers: ['Equipment', 'Type / Size', 'Quantity', 'Operating', 'Idle Reason'],
+          placeholders: ['Excavator', 'CAT 320', '1', 'Y', '']
+        },
+        materials: {
+          headers: ['Material', 'Supplier', 'Quantity', 'Location Used / Stored', 'Inspection Status'],
+          placeholders: ['Concrete', 'Supplier X', '10 m3', 'Storage Yard', 'Inspected']
+        },
+        inspections: {
+          headers: ['Inspection / Test', 'Inspector / Agency', 'Result', 'Remarks'],
+          placeholders: ['Soil compaction', 'QA/QC', 'Pass', '']
+        },
+        delays: {
+          headers: ['Description', 'Impact', 'Corrective Action / Remarks'],
+          placeholders: ['Delivery late', 'Schedule', 'Updated sequence']
+        }
+      };
 
       const photosInput = document.getElementById('photos');
       const thumbs = document.getElementById('thumbs');
+      const status = document.getElementById('status');
+      const photoCheck = document.getElementById('photosCheck');
+      const personnelTotalHoursCell = document.getElementById('personnelTotalHours');
       let photos = [];
 
-      photosInput.addEventListener('change', function(ev) {
+      const form = document.getElementById('reportForm');
+
+      function setStatus(message) {
+        status.textContent = message || '';
+      }
+
+      function makeCellInput(section, index, value) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dataset.section = section;
+        input.dataset.index = String(index);
+        input.placeholder = tableConfigs[section].headers[index];
+        input.value = value || '';
+        return input;
+      }
+
+      function addPersonnelRow(values) {
+        const table = document.querySelector('table[data-section="personnel"] tbody');
+        const row = document.createElement('tr');
+
+        tableConfigs.personnel.headers.forEach((_, index) => {
+          const cell = document.createElement('td');
+          cell.appendChild(makeCellInput('personnel', index, values && values[index]));
+          row.appendChild(cell);
+        });
+        table.appendChild(row);
+
+        row.querySelectorAll('input').forEach(input => {
+          input.addEventListener('input', updatePersonnelTotal);
+        });
+        updatePersonnelTotal();
+      }
+
+      function addRow(section, values) {
+        if (section === 'personnel') {
+          addPersonnelRow(values);
+          return;
+        }
+
+        const table = document.querySelector('table[data-section="' + section + '"] tbody');
+        const config = tableConfigs[section];
+        const row = document.createElement('tr');
+
+        config.headers.forEach((_, index) => {
+          const cell = document.createElement('td');
+          cell.appendChild(makeCellInput(section, index, values && values[index]));
+          row.appendChild(cell);
+        });
+
+        const actionCell = document.createElement('td');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn danger';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          row.remove();
+          if (section === 'personnel') {
+            updatePersonnelTotal();
+          }
+        });
+        actionCell.appendChild(remove);
+        row.appendChild(actionCell);
+        table.appendChild(row);
+      }
+
+      function serializeSection(section) {
+        const rows = Array.from(document.querySelectorAll('table[data-section="' + section + '"] tbody tr'));
+        return rows.map(row => {
+          const values = Array.from(row.querySelectorAll('input')).map(input => input.value.trim());
+          const hasContent = values.some(value => value.length > 0);
+          return hasContent ? values.join(' | ') : '';
+        }).filter(Boolean).join('\n');
+      }
+
+      function parseHours(value) {
+        const parsed = parseFloat(String(value || '').trim());
+        return isNaN(parsed) ? 0 : parsed;
+      }
+
+      function updatePersonnelTotal() {
+        const rows = Array.from(document.querySelectorAll('table[data-section="personnel"] tbody tr'));
+        const total = rows.reduce((sum, row) => {
+          const inputs = row.querySelectorAll('input');
+          return sum + parseHours(inputs[3] && inputs[3].value);
+        }, 0);
+        personnelTotalHoursCell.textContent = total.toFixed(2);
+        return total;
+      }
+
+      function initializeTables() {
+        Object.keys(tableConfigs).forEach(section => {
+          addRow(section, tableConfigs[section].placeholders);
+        });
+      }
+
+      function resetPreview() {
         thumbs.innerHTML = '';
         photos = [];
-        const files = Array.from(ev.target.files || []);
+        photoCheck.checked = false;
+      }
+
+      document.querySelectorAll('[data-add-row]').forEach(button => {
+        button.addEventListener('click', () => {
+          addRow(button.getAttribute('data-add-row'));
+        });
+      });
+
+      photosInput.addEventListener('change', event => {
+        resetPreview();
+        const files = Array.from(event.target.files || []);
+        photoCheck.checked = files.length > 0;
+
         files.forEach(file => {
           const reader = new FileReader();
-          reader.onload = function(e) {
-            const img = new Image();
-            img.src = e.target.result;
+          reader.onload = e => {
+            const img = document.createElement('img');
             img.className = 'thumb';
+            img.alt = file.name;
+            img.src = e.target.result;
             thumbs.appendChild(img);
             photos.push(e.target.result);
           };
@@ -68,43 +785,57 @@
         });
       });
 
-      document.getElementById('sendBtn').addEventListener('click', async function() {
-        const form = document.getElementById('reportForm');
-        const fd = new FormData(form);
-        const fields = {};
-        for (const [k,v] of fd.entries()) {
-          if (fields[k]) {
-            // already present (checkbox / multi)
-          }
-          fields[k] = v;
-        }
-        // include checkbox booleans that may be unchecked
-        fields['safetyMeeting'] = form.querySelector('[name=safetyMeeting]')?.checked ? 'true' : 'false';
-        fields['safetyIncident'] = form.querySelector('[name=safetyIncident]')?.checked ? 'true' : 'false';
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        setStatus('Generating report...');
 
-        const payload = { fields: fields, photosBase64: photos };
+        const fields = Object.fromEntries(new FormData(form).entries());
+        fields.date = document.getElementById('date').value;
+        fields.safetyMeeting = document.getElementById('safetyMeeting').checked ? 'true' : 'false';
+        fields.safetyIncident = document.getElementById('safetyIncident').checked ? 'true' : 'false';
+        fields.photosCheck = photoCheck.checked ? 'true' : 'false';
+        fields.testsCheck = document.getElementById('testsCheck').checked ? 'true' : 'false';
+        fields.drawingsCheck = document.getElementById('drawingsCheck').checked ? 'true' : 'false';
+        fields.personnel = serializeSection('personnel');
+        fields.personnelTotalHours = updatePersonnelTotal().toFixed(2);
+        fields.equipment = serializeSection('equipment');
+        fields.materials = serializeSection('materials');
+        fields.inspections = serializeSection('inspections');
+        fields.delays = serializeSection('delays');
+
+        const payload = { fields, photosBase64: photos };
+
         try {
-          const res = await fetch('/submit', {
+          const response = await fetch('/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          if (!res.ok) {
-            alert('Server returned error: ' + res.status);
-            return;
+
+          if (!response.ok) {
+            throw new Error('Server returned ' + response.status);
           }
-          const blob = await res.blob();
+
+          const blob = await response.blob();
+          const contentType = response.headers.get('Content-Type') || '';
+          const ext = contentType.includes('pdf') ? 'pdf' : contentType.includes('wordprocessingml') ? 'docx' : 'txt';
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'DailyFieldReport.pdf';
-          a.click();
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'DailyFieldReport.' + ext;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
           URL.revokeObjectURL(url);
-        } catch (e) {
-          alert('Failed to send report: ' + e.message);
+          setStatus('Report downloaded.');
+        } catch (error) {
+          setStatus('Failed to generate report: ' + error.message);
         }
       });
-    });
+
+      document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+      initializeTables();
+    })();
   </script>
 </body>
 </html>

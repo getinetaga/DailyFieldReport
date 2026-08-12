@@ -37,7 +37,7 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 public class DailyFieldReport {
 
     // Form components (so we can read their data later)
-    private JTextField projectNameField = new JTextField();
+    private final JTextField projectNameField = new JTextField();
     private JTextField projectNoField = new JTextField();
     private JTextField locationField = new JTextField();
     private JTextField dateField = new JTextField(LocalDate.now().toString());
