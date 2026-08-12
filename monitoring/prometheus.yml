@@ -1,0 +1,58 @@
+# Prometheus Configuration for Daily Field Report
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Daily Field Report Application
+  - job_name: 'daily-field-report'
+    static_configs:
+      - targets: ['daily-field-report:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # System Metrics (Node Exporter)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Database Metrics (PostgreSQL Exporter)
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis Metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Nginx Metrics
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+  # JVM Metrics
+  - job_name: 'jvm-metrics'
+    static_configs:
+      - targets: ['daily-field-report:8080']
+    metrics_path: '/actuator/prometheus'
+    params:
+      match[]:
+        - 'jvm_*'
+        - 'process_*'
+        - 'system_*'
