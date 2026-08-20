@@ -41,6 +41,7 @@ public class WebServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/", new StaticHandler());
         server.createContext("/submit", new SubmitHandler());
+        server.createContext("/save", new SaveHandler());
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         server.start();
         LOGGER.info("Web server started on http://localhost:" + port);
@@ -51,33 +52,71 @@ public class WebServer {
         public void handle(HttpExchange exchange) throws IOException {
             String path = exchange.getRequestURI().getPath();
             if (path.equals("/") || path.equals("/index.html")) {
-                try (InputStream is = WebServer.class.getResourceAsStream("/web/index.html")) {
-                    if (is == null) {
-                        byte[] msg = "Index page not found".getBytes(StandardCharsets.UTF_8);
-                        exchange.sendResponseHeaders(500, msg.length);
-                        exchange.getResponseBody().write(msg);
-                        exchange.close();
-                        return;
-                    }
-                    byte[] bytes = is.readAllBytes();
-                    Headers h = exchange.getResponseHeaders();
-                    h.set("Content-Type", "text/html; charset=utf-8");
-                    exchange.sendResponseHeaders(200, bytes.length);
-                    exchange.getResponseBody().write(bytes);
-                } catch (Throwable t) {
-                    LOGGER.log(Level.SEVERE, "Error serving index.html", t);
-                    byte[] msg = "Server error".getBytes(StandardCharsets.UTF_8);
-                    exchange.sendResponseHeaders(500, msg.length);
-                    exchange.getResponseBody().write(msg);
-                } finally {
-                    exchange.close();
-                }
+                serveResource(exchange, "/web/index.html", "index.html");
+            } else if (path.equals("/report") || path.equals("/report.html")) {
+                serveResource(exchange, "/web/report.html", "report.html");
             } else {
                 byte[] msg = "Not found".getBytes(StandardCharsets.UTF_8);
                 exchange.sendResponseHeaders(404, msg.length);
                 exchange.getResponseBody().write(msg);
                 exchange.close();
             }
+        }
+
+        private void serveResource(HttpExchange exchange, String resourcePath, String label) throws IOException {
+            try (InputStream is = WebServer.class.getResourceAsStream(resourcePath)) {
+                if (is == null) {
+                    byte[] msg = (label + " page not found").getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(500, msg.length);
+                    exchange.getResponseBody().write(msg);
+                    exchange.close();
+                    return;
+                }
+                byte[] bytes = is.readAllBytes();
+                Headers h = exchange.getResponseHeaders();
+                h.set("Content-Type", "text/html; charset=utf-8");
+                exchange.sendResponseHeaders(200, bytes.length);
+                exchange.getResponseBody().write(bytes);
+            } catch (Throwable t) {
+                LOGGER.log(Level.SEVERE, "Error serving " + label, t);
+                byte[] msg = "Server error".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(500, msg.length);
+                exchange.getResponseBody().write(msg);
+            } finally {
+                exchange.close();
+            }
+        }
+    }
+
+    static class SaveHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+                return;
+            }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            Submission sub;
+            try {
+                sub = parseSubmission(body);
+            } catch (Throwable parseEx) {
+                LOGGER.log(Level.WARNING, "Failed to parse save payload", parseEx);
+                exchange.sendResponseHeaders(400, -1);
+                exchange.close();
+                return;
+            }
+
+            Map<String,String> f = sub.fields == null ? Collections.emptyMap() : sub.fields;
+            String savedName = saveReportToDisk(f, buildFullTextReport(f, sub.photosBase64));
+            String json = "{\"status\":\"saved\",\"filename\":\"" + savedName + "\"}";
+            byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+            Headers h = exchange.getResponseHeaders();
+            h.set("Content-Type", "application/json; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
         }
     }
 
@@ -265,6 +304,126 @@ public class WebServer {
                 exchange.close();
             }
         }
+    }
+
+    private static String buildFullTextReport(Map<String, String> fields, List<String> photosBase64) {
+        java.util.LinkedHashMap<String, String> sections = new java.util.LinkedHashMap<>();
+        sections.put("1. General Info", buildGeneralInfoSection(fields));
+        sections.put("2. Personnel", buildPersonnelSection(fields.getOrDefault("personnel", ""), fields.getOrDefault("personnelTotalHours", "0")));
+        sections.put("3. Equipment", fields.getOrDefault("equipment", ""));
+        sections.put("4. Work Performed", fields.getOrDefault("workPerformed", ""));
+        sections.put("5. Materials", fields.getOrDefault("materials", ""));
+        sections.put("6. Inspections", fields.getOrDefault("inspections", ""));
+        StringBuilder safety = new StringBuilder();
+        safety.append("Meeting Held: ").append(Boolean.parseBoolean(fields.getOrDefault("safetyMeeting", "false")) ? "Yes" : "No").append("\n");
+        safety.append("Topic: ").append(fields.getOrDefault("safetyTopic", "")).append("\n");
+        safety.append("Attendees: ").append(fields.getOrDefault("safetyAttendees", "")).append("\n");
+        safety.append("Incidents/Near Misses: ").append(Boolean.parseBoolean(fields.getOrDefault("safetyIncident", "false")) ? "Yes" : "No").append("\n");
+        sections.put("7. Safety", safety.toString());
+        sections.put("8. Delays/Issues", fields.getOrDefault("delays", ""));
+        StringBuilder coord = new StringBuilder();
+        coord.append("Visitors: ").append(fields.getOrDefault("visitors", "")).append("\n");
+        coord.append("Meetings: ").append(fields.getOrDefault("meetings", "")).append("\n");
+        coord.append("Directions: ").append(fields.getOrDefault("directions", "")).append("\n");
+        sections.put("9. Coordination", coord.toString());
+        StringBuilder attach = new StringBuilder();
+        if (photosBase64 != null && !photosBase64.isEmpty()) attach.append("Photos attached: ").append(photosBase64.size()).append("\n");
+        sections.put("10. Attachments", attach.toString());
+
+        StringBuilder text = new StringBuilder();
+        for (Map.Entry<String,String> section : sections.entrySet()) {
+            text.append(section.getKey()).append("\n");
+            text.append(section.getValue()).append("\n\n");
+        }
+        return text.toString();
+    }
+
+    private static String buildGeneralInfoSection(Map<String, String> fields) {
+        StringBuilder gen = new StringBuilder();
+        gen.append("Report Name: ").append(fields.getOrDefault("reportName", "Daily Report")).append("\n");
+        gen.append("Project Name: ").append(fields.getOrDefault("projectName", "")).append("\n");
+        gen.append("Project No.: ").append(fields.getOrDefault("projectNo", "")).append("\n");
+        gen.append("Location: ").append(fields.getOrDefault("location", "")).append("\n");
+        gen.append("Date: ").append(fields.getOrDefault("date", "")).append("\n");
+        gen.append("Weather: ").append(fields.getOrDefault("weather", "")).append("\n");
+        gen.append("Temperature: ").append(fields.getOrDefault("temperature", "")).append("\n");
+        gen.append("Wind: ").append(fields.getOrDefault("wind", "")).append("\n");
+        return gen.toString();
+    }
+
+    private static String saveReportToDisk(Map<String, String> fields, String content) {
+        String dateValue = fields.getOrDefault("date", java.time.LocalDate.now().toString());
+        String reportName = fields.getOrDefault("reportName", "Daily Report");
+        if (reportName == null || reportName.trim().isEmpty()) {
+            reportName = "Daily Report";
+        }
+
+        String safeDate = dateValue.trim();
+        if (safeDate.isEmpty()) {
+            safeDate = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+        }
+        String normalizedDate = safeDate.replace('-', '.');
+        String cleanName = sanitizeFileToken(reportName);
+        if (cleanName.isEmpty()) cleanName = "Daily Report";
+
+        Path reportsDir = Path.of("reports");
+        try {
+            Files.createDirectories(reportsDir);
+        } catch (IOException ioEx) {
+            LOGGER.log(Level.WARNING, "Could not create reports directory", ioEx);
+            reportsDir = Path.of(System.getProperty("java.io.tmpdir"));
+        }
+
+        int nextNo = nextReportNumber(reportsDir, normalizedDate, cleanName);
+        String safeName = cleanName + " NO." + nextNo;
+        String fileName = normalizedDate + "_" + safeName + ".txt";
+        Path target = reportsDir.resolve(fileName);
+        try {
+            Files.writeString(target, content, StandardCharsets.UTF_8);
+            return target.getFileName().toString();
+        } catch (IOException ioEx) {
+            LOGGER.log(Level.SEVERE, "Error saving report to disk", ioEx);
+            return fileName;
+        }
+    }
+
+    private static int nextReportNumber(Path reportsDir, String normalizedDate, String cleanName) {
+        int[] highest = {0};
+        try {
+            if (Files.exists(reportsDir)) {
+                try (var stream = Files.list(reportsDir)) {
+                    stream.filter(path -> path.getFileName().toString().startsWith(normalizedDate + "_"))
+                          .filter(path -> path.getFileName().toString().contains(sanitizeFileToken(cleanName)))
+                          .forEach(path -> {
+                              String fileName = path.getFileName().toString();
+                              int marker = fileName.indexOf(" NO.");
+                              if (marker > 0) {
+                                  int start = marker + 4;
+                                  int end = fileName.lastIndexOf('.');
+                                  if (end > start) {
+                                      try {
+                                          int value = Integer.parseInt(fileName.substring(start, end));
+                                          if (value > highest[0]) highest[0] = value;
+                                      } catch (NumberFormatException ignored) {
+                                      }
+                                  }
+                              }
+                          });
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return highest[0] + 1;
+    }
+
+    private static String sanitizeFileToken(String value) {
+        if (value == null) return "Daily Report";
+        String raw = value.trim();
+        if (raw.isEmpty()) return "Daily Report";
+        String cleaned = raw.replaceAll("[\\/:*?\"<>|]", "-");
+        cleaned = cleaned.replaceAll("\\s+", " ").trim();
+        if (cleaned.isEmpty()) return "Daily Report";
+        return cleaned;
     }
 
     // Very small tolerant JSON parser for the specific expected payload shape:
