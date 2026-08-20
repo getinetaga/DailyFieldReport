@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daily Field Report Editor</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --line: #dfe7f1;
+      --text: #243447;
+      --muted: #64748b;
+      --accent: #2e6fb3;
+      --soft: #edf4fc;
+      --danger: #c0392b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #eef4fb 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .toolbar h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 40px);
+      letter-spacing: -0.03em;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, #2e6fb3 0%, #3d87cd 100%);
+      color: #fff;
+      font-weight: 700;
+    }
+    .btn.secondary {
+      background: var(--soft);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .status {
+      min-height: 24px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .editor {
+      display: grid;
+      gap: 18px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .section-head h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .general-grid,
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .full { grid-column: 1 / -1; }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .check-list {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .thumb {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    table {
+      width: 100%;
+      min-width: 700px;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f8fbff;
+      color: #36516f;
+      font-size: 13px;
+    }
+    @media (max-width: 760px) {
+      .general-grid, .field-grid { grid-template-columns: 1fr; }
+      .toolbar { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="toolbar">
+      <h1>Daily Field Report Editor</h1>
+      <div class="actions">
+        <button class="btn secondary" type="button" id="backButton">Back to form</button>
+        <button class="btn secondary" type="button" id="saveDraftButton">Save Draft</button>
+        <button class="btn primary" type="button" id="downloadButton">Download PDF</button>
+      </div>
+    </header>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <main id="reportEditor" class="editor" aria-live="polite"></main>
+  </div>
+
+  <script>
+    (() => {
+      const editor = document.getElementById('reportEditor');
+      const status = document.getElementById('status');
+      const draftKey = 'dailyFieldReportDraft';
+      const fieldLabels = {
+        projectName: 'Project Name',
+        projectNo: 'Project No.',
+        location: 'Location',
+        date: 'Date',
+        weather: 'Weather',
+        temperature: 'Temperature',
+        wind: 'Wind',
+        visitors: 'Visitors',
+        meetings: 'Meetings / Coordination',
+        directions: 'Directions / Instructions',
+        workPerformed: 'Work Performed',
+        safetyTopic: 'Safety Topic',
+        safetyAttendees: 'Safety Attendees',
+        personnel: 'Personnel',
+        equipment: 'Equipment',
+        materials: 'Materials',
+        inspections: 'Inspections / Tests',
+        delays: 'Delays / Issues',
+        photosCheck: 'Photos Attached',
+        testsCheck: 'Test Results Attached',
+        drawingsCheck: 'Drawings / Sketches Attached',
+        format: 'Export Format'
+      };
+
+      function setStatus(message) {
+        status.textContent = message || '';
+      }
+
+      function getDraft() {
+        const raw = sessionStorage.getItem(draftKey);
+        if (!raw) {
+          return null;
+        }
+        try {
+          return JSON.parse(raw);
+        } catch (err) {
+          console.warn('Invalid stored draft', err);
+          return null;
+        }
+      }
+
+      function textInput(key, value, label, multiline) {
+        const wrapper = document.createElement('div');
+        const lbl = document.createElement('label');
+        lbl.textContent = label;
+        wrapper.appendChild(lbl);
+
+        const control = multiline ? document.createElement('textarea') : document.createElement('input');
+        control.name = key;
+        control.value = value || '';
+        control.dataset.field = key;
+        control.setAttribute('aria-label', label);
+        wrapper.appendChild(control);
+        return wrapper;
+      }
+
+      function renderCheckbox(key, label, checked) {
+        const wrapper = document.createElement('label');
+        wrapper.className = 'check';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = !!checked;
+        input.dataset.field = key;
+        wrapper.appendChild(input);
+        wrapper.appendChild(document.createTextNode(label));
+        return wrapper;
+      }
+
+      function renderPhotos(photos) {
+        const container = document.createElement('div');
+        const title = document.createElement('div');
+        title.className = 'section-head';
+        title.innerHTML = '<h2>Photos</h2>';
+        container.appendChild(title);
+
+        const thumbs = document.createElement('div');
+        thumbs.className = 'thumbs';
+
+        if (Array.isArray(photos) && photos.length > 0) {
+          photos.forEach(photo => {
+            const image = document.createElement('img');
+            image.className = 'thumb';
+            image.src = photo;
+            image.alt = 'Report attachment';
+            thumbs.appendChild(image);
+          });
+        } else {
+          const empty = document.createElement('p');
+          empty.style.color = '#64748b';
+          empty.textContent = 'No photos attached.';
+          thumbs.appendChild(empty);
+        }
+
+        container.appendChild(thumbs);
+        return container;
+      }
+
+      function renderSection(title, body) {
+        const section = document.createElement('section');
+        section.className = 'card';
+        const head = document.createElement('div');
+        head.className = 'section-head';
+        const h2 = document.createElement('h2');
+        h2.textContent = title;
+        head.appendChild(h2);
+        section.appendChild(head);
+        section.appendChild(body);
+        return section;
+      }
+
+      function renderReport(draft) {
+        editor.innerHTML = '';
+        if (!draft || !draft.fields) {
+          const section = document.createElement('section');
+          section.className = 'card';
+          section.innerHTML = '<h2>No report draft found</h2><p>Open the main form and choose "Preview & Edit" to load a report into this page.</p>';
+          editor.appendChild(section);
+          return;
+        }
+
+        const fields = draft.fields;
+        const general = document.createElement('div');
+        general.className = 'general-grid';
+        [
+          ['reportName', 'Report Name'],
+          ['projectName', 'Project Name'],
+          ['projectNo', 'Project No.'],
+          ['location', 'Location'],
+          ['date', 'Date'],
+          ['weather', 'Weather'],
+          ['temperature', 'Temperature'],
+          ['wind', 'Wind']
+        ].forEach(([key, label]) => {
+          general.appendChild(textInput(key, fields[key], label, false));
+        });
+        editor.appendChild(renderSection('General Information', general));
+
+        const coord = document.createElement('div');
+        coord.className = 'general-grid';
+        ['visitors', 'meetings', 'directions'].forEach(key => {
+          coord.appendChild(textInput(key, fields[key], fieldLabels[key] || key, false));
+        });
+        editor.appendChild(renderSection('Coordination', coord));
+
+        const work = document.createElement('div');
+        work.appendChild(textInput('workPerformed', fields.workPerformed, 'Work Performed', true));
+        editor.appendChild(renderSection('Work Performed', work));
+
+        const safety = document.createElement('div');
+        safety.className = 'field-grid';
+        safety.appendChild(textInput('safetyTopic', fields.safetyTopic, 'Topic', false));
+        safety.appendChild(textInput('safetyAttendees', fields.safetyAttendees, 'Attendees', false));
+        const checks = document.createElement('div');
+        checks.className = 'check-list';
+        checks.appendChild(renderCheckbox('safetyMeeting', 'Safety meeting held', fields.safetyMeeting === 'true'));
+        checks.appendChild(renderCheckbox('safetyIncident', 'Incidents / Near misses', fields.safetyIncident === 'true'));
+        const checkWrap = document.createElement('div');
+        checkWrap.className = 'full';
+        checkWrap.appendChild(checks);
+        safety.appendChild(checkWrap);
+        editor.appendChild(renderSection('Safety', safety));
+
+        const tableFields = [
+          ['Personnel', 'personnel'],
+          ['Equipment', 'equipment'],
+          ['Materials', 'materials'],
+          ['Inspections / Tests', 'inspections'],
+          ['Delays / Issues', 'delays']
+        ];
+
+        tableFields.forEach(([title, key]) => {
+          const wrap = document.createElement('div');
+          const textarea = document.createElement('textarea');
+          textarea.name = key;
+          textarea.dataset.field = key;
+          textarea.value = fields[key] || '';
+          textarea.setAttribute('aria-label', title);
+          wrap.appendChild(textarea);
+          editor.appendChild(renderSection(title, wrap));
+        });
+
+        const attachments = document.createElement('div');
+        attachments.className = 'field-grid';
+        const checkArea = document.createElement('div');
+        checkArea.className = 'check-list';
+        checkArea.appendChild(renderCheckbox('photosCheck', 'Photos attached', fields.photosCheck === 'true'));
+        checkArea.appendChild(renderCheckbox('testsCheck', 'Test results attached', fields.testsCheck === 'true'));
+        checkArea.appendChild(renderCheckbox('drawingsCheck', 'Drawings / sketches attached', fields.drawingsCheck === 'true'));
+        attachments.appendChild(checkArea);
+        const photoBox = document.createElement('div');
+        photoBox.className = 'full';
+        photoBox.appendChild(renderPhotos(Array.isArray(draft.photosBase64) ? draft.photosBase64 : []));
+        attachments.appendChild(photoBox);
+        editor.appendChild(renderSection('Attachments', attachments));
+      }
+
+      function collectDraft() {
+        const formControls = editor.querySelectorAll('[data-field]');
+        const next = getDraft() || { fields: {}, photosBase64: [] };
+        const fields = { ...(next.fields || {}) };
+
+        formControls.forEach(control => {
+          const key = control.dataset.field;
+          if (control.tagName === 'INPUT' && control.type === 'checkbox') {
+            fields[key] = control.checked ? 'true' : 'false';
+          } else {
+            fields[key] = control.value;
+          }
+        });
+
+        return { fields, photosBase64: next.photosBase64 || [] };
+      }
+
+      async function saveDraft() {
+        const payload = collectDraft();
+        sessionStorage.setItem(draftKey, JSON.stringify(payload));
+        setStatus('Saving report...');
+        try {
+          const response = await fetch('/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error('Server returned ' + response.status);
+          }
+
+          const result = await response.json();
+          setStatus('Saved as ' + (result.filename || 'report.txt'));
+        } catch (error) {
+          setStatus('Failed to save report: ' + error.message);
+        }
+      }
+
+      async function downloadReport() {
+        const payload = collectDraft();
+        setStatus('Preparing report...');
+        try {
+          const response = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error('Server returned ' + response.status);
+          }
+
+          const blob = await response.blob();
+          const contentType = response.headers.get('Content-Type') || '';
+          const ext = contentType.includes('pdf') ? 'pdf' : contentType.includes('wordprocessingml') ? 'docx' : 'txt';
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'DailyFieldReport.' + ext;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(url);
+          setStatus('Report generated and downloaded.');
+        } catch (error) {
+          setStatus('Failed to generate report: ' + error.message);
+        }
+      }
+
+      document.getElementById('saveDraftButton').addEventListener('click', saveDraft);
+      document.getElementById('downloadButton').addEventListener('click', downloadReport);
+      document.getElementById('backButton').addEventListener('click', () => {
+        window.location.href = '/';
+      });
+
+      renderReport(getDraft());
+      setStatus(getDraft() ? 'Draft loaded for editing.' : 'No draft available yet.');
+    })();
+  </script>
+</body>
+</html>

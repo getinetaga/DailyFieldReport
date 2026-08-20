@@ -36,7 +36,7 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 public class DailyFieldReport {
 
-    // Form components (so we can read their data later)
+    // Form components (so we can read their data later) The data layer should be side by side when exporting to PDF/Word, so we need to capture the entire form as an image for export. We'll also collect the text data for fallback plain-text export.
     private final JTextField projectNameField = new JTextField();
     private JTextField projectNoField = new JTextField();
     private JTextField locationField = new JTextField();
@@ -203,22 +203,51 @@ public class DailyFieldReport {
     }
 
     private JPanel createGeneralInfoPanel() {
-        JPanel panel = new JPanel(new GridLayout(7, 2, 10, 10));
-        panel.add(new JLabel("Project Name:"));
-        panel.add(projectNameField);
-        panel.add(new JLabel("Project No.:"));
-        panel.add(projectNoField);
-        panel.add(new JLabel("Location:"));
-        panel.add(locationField);
-        panel.add(new JLabel("Date:"));
-        panel.add(dateField);
-        panel.add(new JLabel("Weather AM / PM:"));
-        panel.add(weatherField);
-        panel.add(new JLabel("Temperature AM / PM:"));
-        panel.add(temperatureField);
-        panel.add(new JLabel("Wind:"));
-        panel.add(windField);
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 8, 5, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Left column
+        addField(panel, gbc, 0, 0, "Project Name:", projectNameField);
+        addField(panel, gbc, 0, 1, "Project No.:", projectNoField);
+        addField(panel, gbc, 0, 2, "Location:", locationField);
+        addField(panel, gbc, 0, 3, "Date:", dateField);
+
+        // Right column
+        addField(panel, gbc, 2, 0, "Weather AM / PM:", weatherField);
+        addField(panel, gbc, 2, 1, "Temperature AM / PM:", temperatureField);
+        addField(panel, gbc, 2, 2, "Wind:", windField);
+
+        // Make fields expand
+        gbc.weightx = 1.0;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridheight = 4;
+
         return panel;
+    }
+
+    private void addField(JPanel panel, GridBagConstraints gbc,
+                          int column, int row,
+                          String labelText, JComponent field) {
+
+        gbc.gridx = column;
+        gbc.gridy = row;
+        gbc.gridwidth = 1;
+        gbc.weightx = 0;
+
+        JLabel label = new JLabel(labelText);
+        panel.add(label, gbc);
+
+        gbc.gridx = column + 1;
+        gbc.weightx = 1.0;
+
+        field.setPreferredSize(new Dimension(180, 28));
+        panel.add(field, gbc);
     }
 
     private JPanel createPersonnelPanel() {

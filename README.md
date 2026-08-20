@@ -35,6 +35,8 @@ Run the embedded web server (recommended via Maven so dependencies are on classp
 Open the web UI
 
 - Navigate to http://localhost:8080 in Chrome (or your browser). Fill the form and choose export format PDF or Plain Text.
+- Use the "Preview & Edit" button to open the report in a dedicated editing page, then download the final PDF from there.
+- Saved reports are stored in the `reports/` folder using the pattern `YYYY.MM.DD_Report Name NO.n.txt` (for example, `2026.08.20_Daily Report NO.1.txt`).
 
 Manual test — request a PDF via curl (example)
 

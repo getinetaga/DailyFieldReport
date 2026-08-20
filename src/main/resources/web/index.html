@@ -371,6 +371,34 @@
       text-align: center;
       padding: 8px 0 2px;
     }
+    @media print {
+      .table-wrap {
+        width: 100%;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+      }
+      table {
+        width: 100%;
+        min-width: 0;
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+      table th,
+      table td {
+        border: 1px solid #000 !important;
+        padding: 6px;
+      }
+      table thead th {
+        border: 1px solid #000 !important;
+        background-color: #f2f2f2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      table tfoot td {
+        border: 1px solid #000 !important;
+      }
+    }
     @media (max-width: 980px) {
       .span-8, .span-6, .span-4, .span-3 { grid-column: span 12; }
       .field-grid { grid-template-columns: 1fr; }
@@ -414,6 +442,7 @@
         <div class="subsection">
           <div class="subsection-title">Project Details</div>
           <div class="general-grid">
+            <div><label for="reportName">Report Name</label><input id="reportName" name="reportName" value="Daily Report" /></div>
             <div><label for="projectName">Project Name</label><input id="projectName" name="projectName" /></div>
             <div><label for="projectNo">Project No.</label><input id="projectNo" name="projectNo" /></div>
             <div><label for="location">Location</label><input id="location" name="location" /></div>
@@ -618,6 +647,7 @@
             </select>
           </div>
           <div class="footer-actions">
+            <button class="btn secondary" type="button" id="previewButton">Preview &amp; Edit</button>
             <button class="btn primary" type="submit">Generate Report</button>
           </div>
         </div>
@@ -733,6 +763,24 @@
         }).filter(Boolean).join('\n');
       }
 
+      function buildPayloadFromForm() {
+        const fields = Object.fromEntries(new FormData(form).entries());
+        fields.reportName = document.getElementById('reportName').value || 'Daily Report';
+        fields.date = document.getElementById('date').value;
+        fields.safetyMeeting = document.getElementById('safetyMeeting').checked ? 'true' : 'false';
+        fields.safetyIncident = document.getElementById('safetyIncident').checked ? 'true' : 'false';
+        fields.photosCheck = photoCheck.checked ? 'true' : 'false';
+        fields.testsCheck = document.getElementById('testsCheck').checked ? 'true' : 'false';
+        fields.drawingsCheck = document.getElementById('drawingsCheck').checked ? 'true' : 'false';
+        fields.personnel = serializeSection('personnel');
+        fields.personnelTotalHours = updatePersonnelTotal().toFixed(2);
+        fields.equipment = serializeSection('equipment');
+        fields.materials = serializeSection('materials');
+        fields.inspections = serializeSection('inspections');
+        fields.delays = serializeSection('delays');
+        return { fields, photosBase64: photos };
+      }
+
       function parseHours(value) {
         const parsed = parseFloat(String(value || '').trim());
         return isNaN(parsed) ? 0 : parsed;
@@ -785,25 +833,17 @@
         });
       });
 
+      function openPreviewPage() {
+        const payload = buildPayloadFromForm();
+        sessionStorage.setItem('dailyFieldReportDraft', JSON.stringify(payload));
+        window.location.href = '/report.html';
+      }
+
       form.addEventListener('submit', async event => {
         event.preventDefault();
         setStatus('Generating report...');
 
-        const fields = Object.fromEntries(new FormData(form).entries());
-        fields.date = document.getElementById('date').value;
-        fields.safetyMeeting = document.getElementById('safetyMeeting').checked ? 'true' : 'false';
-        fields.safetyIncident = document.getElementById('safetyIncident').checked ? 'true' : 'false';
-        fields.photosCheck = photoCheck.checked ? 'true' : 'false';
-        fields.testsCheck = document.getElementById('testsCheck').checked ? 'true' : 'false';
-        fields.drawingsCheck = document.getElementById('drawingsCheck').checked ? 'true' : 'false';
-        fields.personnel = serializeSection('personnel');
-        fields.personnelTotalHours = updatePersonnelTotal().toFixed(2);
-        fields.equipment = serializeSection('equipment');
-        fields.materials = serializeSection('materials');
-        fields.inspections = serializeSection('inspections');
-        fields.delays = serializeSection('delays');
-
-        const payload = { fields, photosBase64: photos };
+        const payload = buildPayloadFromForm();
 
         try {
           const response = await fetch('/submit', {
@@ -833,6 +873,7 @@
         }
       });
 
+      document.getElementById('previewButton').addEventListener('click', openPreviewPage);
       document.getElementById('date').value = new Date().toISOString().slice(0, 10);
       initializeTables();
     })();
