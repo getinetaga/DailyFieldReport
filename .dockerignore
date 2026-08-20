@@ -1,0 +1,96 @@
+# Dockerignore Configuration
+# Excludes files and directories from Docker build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+DEVOPS_GUIDE.md
+SECRETS_SETUP.md
+DEPLOYMENT_GUIDE.md
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+target/
+!target/*.jar
+build/
+out/
+
+# Logs
+*.log
+logs/
+
+# Test reports
+TEST-*.xml
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# Gradle
+gradle/
+gradlew
+gradlew.bat
+
+# Node.js (if applicable)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime directories
+exports/
+temp/
+
+# Configuration files that shouldn't be in container
+.env
+.env.*
+docker-compose*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Monitoring
+monitoring/
+
+# Nginx config (handled separately)
+nginx/
+
+# Security
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.backup
+*.bak
+
+# Test files
+*test*
+*Test*
+demo_test.txt
+complete_test.txt
+test_input.txt
+test_logo.txt
