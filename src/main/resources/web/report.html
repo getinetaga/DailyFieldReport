@@ -192,6 +192,29 @@
       const editor = document.getElementById('reportEditor');
       const status = document.getElementById('status');
       const draftKey = 'dailyFieldReportDraft';
+      const tableSchemas = {
+        personnel: {
+          headers: ['Company', 'Trade / Role', 'No. of Workers', 'Hours Worked', 'Foreman / Supervisor'],
+          placeholders: ['Acme Corp', 'Carpentry', '5', '8', 'John Doe']
+        },
+        equipment: {
+          headers: ['Equipment', 'Type / Size', 'Quantity', 'Operating', 'Idle Reason'],
+          placeholders: ['Excavator', 'CAT 320', '1', 'Y', '']
+        },
+        materials: {
+          headers: ['Material', 'Supplier', 'Quantity', 'Location Used / Stored', 'Inspection Status'],
+          placeholders: ['Concrete', 'Supplier X', '10 m3', 'Storage Yard', 'Inspected']
+        },
+        inspections: {
+          headers: ['Inspection / Test', 'Inspector / Agency', 'Result', 'Remarks'],
+          placeholders: ['Soil compaction', 'QA/QC', 'Pass', '']
+        },
+        delays: {
+          headers: ['Description', 'Impact', 'Corrective Action / Remarks'],
+          placeholders: ['Delivery late', 'Schedule', 'Updated sequence']
+        }
+      };
+
       const fieldLabels = {
         projectName: 'Project Name',
         projectNo: 'Project No.',
@@ -219,6 +242,157 @@
 
       function setStatus(message) {
         status.textContent = message || '';
+      }
+
+      function parseTableRows(rawValue, expectedColumns) {
+        const rows = [];
+        const sourceLines = rawValue && String(rawValue).trim() ? String(rawValue).split(/\n+/) : [];
+
+        if (!sourceLines.length) {
+          rows.push(new Array(expectedColumns).fill(''));
+          return rows;
+        }
+
+        sourceLines.forEach(line => {
+          const values = String(line).split(' | ');
+          const row = [];
+          for (let i = 0; i < expectedColumns; i += 1) {
+            row.push(values[i] || '');
+          }
+          if (row.some(cell => cell.trim() !== '')) {
+            rows.push(row);
+          }
+        });
+
+        if (!rows.length) {
+          rows.push(new Array(expectedColumns).fill(''));
+        }
+
+        return rows;
+      }
+
+      function serializeTableRows(table) {
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        const values = rows.map(row => {
+          const cells = Array.from(row.querySelectorAll('input')).map(input => (input.value || '').trim());
+          return cells.join(' | ');
+        }).filter(row => row && row.replace(/\s*\|\s*/g, '').trim());
+        return values.join('\n');
+      }
+
+      function addTableRow(sectionKey, table, values) {
+        const schema = tableSchemas[sectionKey];
+        const row = document.createElement('tr');
+        const data = values || new Array(schema.headers.length).fill('');
+
+        schema.headers.forEach((header, index) => {
+          const cell = document.createElement('td');
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = data[index] || '';
+          input.placeholder = header;
+          input.dataset.tableKey = sectionKey;
+          cell.appendChild(input);
+          row.appendChild(cell);
+        });
+
+        const actionCell = document.createElement('td');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn secondary';
+        remove.style.padding = '8px 12px';
+        remove.style.fontSize = '12px';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => {
+          row.remove();
+          if (sectionKey === 'personnel') {
+            updatePersonnelTotal(table);
+          }
+        });
+        actionCell.appendChild(remove);
+        row.appendChild(actionCell);
+        table.querySelector('tbody').appendChild(row);
+
+        if (sectionKey === 'personnel') {
+          row.querySelectorAll('input').forEach(input => input.addEventListener('input', () => updatePersonnelTotal(table)));
+          updatePersonnelTotal(table);
+        }
+      }
+
+      function renderTableSection(title, key, fields) {
+        const section = document.createElement('section');
+        section.className = 'card';
+
+        const head = document.createElement('div');
+        head.className = 'section-head';
+        const h2 = document.createElement('h2');
+        h2.textContent = title;
+        const action = document.createElement('button');
+        action.type = 'button';
+        action.className = 'btn secondary';
+        action.textContent = 'Add row';
+        action.addEventListener('click', () => {
+          const table = section.querySelector('table');
+          addTableRow(key, table);
+        });
+        head.appendChild(h2);
+        head.appendChild(action);
+        section.appendChild(head);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        const table = document.createElement('table');
+        table.dataset.tableKey = key;
+
+        const thead = document.createElement('thead');
+        const trHead = document.createElement('tr');
+        tableSchemas[key].headers.forEach(header => {
+          const th = document.createElement('th');
+          th.textContent = header;
+          trHead.appendChild(th);
+        });
+        const actionHead = document.createElement('th');
+        actionHead.textContent = '';
+        trHead.appendChild(actionHead);
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+
+        const rows = parseTableRows(fields[key], tableSchemas[key].headers.length);
+        rows.forEach(row => addTableRow(key, table, row));
+
+        if (key === 'personnel') {
+          const tfoot = document.createElement('tfoot');
+          const totalRow = document.createElement('tr');
+          const spacer = document.createElement('td');
+          spacer.colSpan = tableSchemas[key].headers.length - 1;
+          const totalCell = document.createElement('td');
+          totalCell.innerHTML = '<strong>Total Hours: <span data-personnel-total>0.00</span></strong>';
+          totalRow.appendChild(spacer);
+          totalRow.appendChild(totalCell);
+          tfoot.appendChild(totalRow);
+          table.appendChild(tfoot);
+          updatePersonnelTotal(table);
+        }
+
+        section.appendChild(wrap);
+        return section;
+      }
+
+      function updatePersonnelTotal(table) {
+        const total = Array.from(table.querySelectorAll('tbody tr')).reduce((sum, row) => {
+          const hoursInput = row.querySelectorAll('input')[3];
+          const value = Number.parseFloat((hoursInput && hoursInput.value) || '0');
+          return sum + (Number.isFinite(value) ? value : 0);
+        }, 0);
+
+        const totalCell = table.querySelector('[data-personnel-total]');
+        if (totalCell) {
+          totalCell.textContent = total.toFixed(2);
+        }
       }
 
       function getDraft() {
@@ -355,23 +529,8 @@
         safety.appendChild(checkWrap);
         editor.appendChild(renderSection('Safety', safety));
 
-        const tableFields = [
-          ['Personnel', 'personnel'],
-          ['Equipment', 'equipment'],
-          ['Materials', 'materials'],
-          ['Inspections / Tests', 'inspections'],
-          ['Delays / Issues', 'delays']
-        ];
-
-        tableFields.forEach(([title, key]) => {
-          const wrap = document.createElement('div');
-          const textarea = document.createElement('textarea');
-          textarea.name = key;
-          textarea.dataset.field = key;
-          textarea.value = fields[key] || '';
-          textarea.setAttribute('aria-label', title);
-          wrap.appendChild(textarea);
-          editor.appendChild(renderSection(title, wrap));
+        Object.keys(tableSchemas).forEach(key => {
+          editor.appendChild(renderTableSection(fieldLabels[key] || key, key, fields));
         });
 
         const attachments = document.createElement('div');
@@ -400,6 +559,13 @@
             fields[key] = control.checked ? 'true' : 'false';
           } else {
             fields[key] = control.value;
+          }
+        });
+
+        Object.keys(tableSchemas).forEach(key => {
+          const table = editor.querySelector('table[data-table-key="' + key + '"]');
+          if (table) {
+            fields[key] = serializeTableRows(table);
           }
         });
 
